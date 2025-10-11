@@ -34,3 +34,5 @@ Thumbs.db
 *.secret
 
 /generated/prisma
+
+node_modules
