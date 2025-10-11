@@ -1,0 +1,65 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 🧠 User Model
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)   // 👈 Added role field
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+
+// 🛒 Product Model
+model Product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  stock       Int
+  createdAt   DateTime    @default(now())
+  inventory   Inventory?
+  sales       Sale[]
+}
+
+
+// 📦 Inventory Model
+model Inventory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  quantity    Int
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+
+
+// 💵 Sales Model (optional - for next step)
+model Sale {
+  id         Int      @id @default(autoincrement())
+  quantity   Int
+  totalPrice Float
+  createdAt  DateTime @default(now())
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
