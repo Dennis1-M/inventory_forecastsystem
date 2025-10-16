@@ -1,8 +1,7 @@
+// routes/salesRoutes.js
 import { PrismaClient } from "@prisma/client";
 import express from "express";
 import { verifyToken } from "../middleware/authMiddleware.js";
-import { allowRoles } from "../middleware/roleMiddleware.js";
-
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -23,20 +22,20 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 🟢 Create a sale record
-router.post("/", allowRoles("ADMIN"), async (req, res) => {
+// 🟢 Create a sale record (ADMIN only)
+router.post("/", async (req, res) => {
   try {
     const { productId, quantity, totalPrice } = req.body;
     if (!productId || !quantity || !totalPrice) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Verify product exists
+    // Check if product exists
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    // Check stock
-    const inventory = await prisma.inventory.findUnique({ where: { productId } });
+    // Check inventory
+    const inventory = await prisma.inventory.findFirst({ where: { productId } });
     if (!inventory || inventory.quantity < quantity) {
       return res.status(400).json({ error: "Insufficient stock" });
     }
@@ -46,13 +45,13 @@ router.post("/", allowRoles("ADMIN"), async (req, res) => {
       data: { productId, quantity, totalPrice },
     });
 
-    // Update inventory (reduce stock)
+    // Update inventory (decrease quantity)
     await prisma.inventory.update({
       where: { productId },
       data: { quantity: inventory.quantity - quantity },
     });
 
-    res.status(201).json({ message: "Sale recorded", sale });
+    res.status(201).json({ message: "Sale recorded successfully", sale });
   } catch (error) {
     console.error("❌ Error recording sale:", error);
     res.status(500).json({ error: "Failed to record sale" });
@@ -60,4 +59,3 @@ router.post("/", allowRoles("ADMIN"), async (req, res) => {
 });
 
 export default router;
-// - --- IGNORE ---

@@ -1,24 +1,21 @@
-import { PrismaClient } from "@prisma/client";
+// routes/inventoryRoutes.js
 import express from "express";
+import { PrismaClient } from "@prisma/client";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { allowRoles } from "../middleware/roleMiddleware.js";
 
-
-const router = express.Router();
 const prisma = new PrismaClient();
+const router = express.Router();
 
-
-// 👮 Protect + allow ADMIN only
+// 🧱 Protect routes & allow ADMIN only
 router.use(verifyToken);
 router.use(allowRoles("ADMIN"));
-
-
 
 // 🟢 Get all inventory records
 router.get("/", async (req, res) => {
   try {
     const inventory = await prisma.inventory.findMany({
-      include: { product: true },
+      include: { product: true, user: true },
     });
     res.json(inventory);
   } catch (error) {
@@ -27,76 +24,48 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 🟡 Update product inventory (increase/decrease stock)
-router.put("/update", async (req, res) => {
+// 🟡 Create new inventory record
+router.post("/", async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
+    const { name, description, quantity, price, productId } = req.body;
+    const userId = req.user.id; // From JWT
 
-    if (!productId || quantity === undefined) {
-      return res.status(400).json({ error: "productId and quantity required" });
+    if (!name || !quantity || !price || !productId) {
+      return res.status(400).json({
+        error: "name, quantity, price, and productId are required",
+      });
     }
 
     // Check if product exists
     const product = await prisma.product.findUnique({
-      where: { id: productId },
+      where: { id: Number(productId) },
     });
 
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Check if inventory exists
+    // Check if inventory already exists for this product
     const existingInventory = await prisma.inventory.findUnique({
-      where: { productId },
-    });
-
-    if (!existingInventory) {
-      return res.status(404).json({ error: "Inventory record not found for product" });
-    }
-
-    // Update inventory quantity
-    const updatedInventory = await prisma.inventory.update({
-      where: { productId },
-      data: { quantity },
-    });
-
-    res.json(updatedInventory);
-  } catch (error) {
-    console.error("❌ Error updating inventory:", error);
-    res.status(500).json({ error: "Failed to update inventory" });
-  }
-});
-
-// 🟢 Create inventory for a new product
-router.post("/", async (req, res) => {
-  try {
-    const { productId, quantity } = req.body;
-
-    if (!productId || quantity === undefined) {
-      return res.status(400).json({ error: "productId and quantity required" });
-    }
-
-    // ✅ Check if the product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    // ✅ Check if inventory already exists for this product
-    const existingInventory = await prisma.inventory.findUnique({
-      where: { productId },
+      where: { productId: Number(productId) },
     });
 
     if (existingInventory) {
-      return res.status(400).json({ error: "Inventory already exists for this product" });
+      return res
+        .status(400)
+        .json({ error: "Inventory already exists for this product" });
     }
 
-    // ✅ Create new inventory record
+    // Create inventory record
     const newInventory = await prisma.inventory.create({
-      data: { productId, quantity },
+      data: {
+        name,
+        description,
+        quantity: Number(quantity),
+        price: Number(price),
+        productId: Number(productId),
+        userId,
+      },
     });
 
     res.status(201).json(newInventory);
@@ -106,5 +75,35 @@ router.post("/", async (req, res) => {
   }
 });
 
+// 🟣 Update inventory
+router.put("/:id", async (req, res) => {
+  try {
+    const { quantity, price, description } = req.body;
+    const { id } = req.params;
+
+    const updated = await prisma.inventory.update({
+      where: { id: Number(id) },
+      data: { quantity: Number(quantity), price: Number(price), description },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("❌ Error updating inventory:", error);
+    res.status(500).json({ error: "Failed to update inventory" });
+  }
+});
+
+// 🔴 Delete inventory
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.inventory.delete({ where: { id: Number(id) } });
+    res.json({ message: "Inventory deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting inventory:", error);
+    res.status(500).json({ error: "Failed to delete inventory" });
+  }
+});
+
 export default router;
-// - --- IGNORE ---
+// routes/inventoryRoutes.js

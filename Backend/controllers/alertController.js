@@ -1,29 +1,56 @@
-import { Alert } from "../models/Alert.js";
-import { Product } from "../models/Product.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
+// 🟢 Get All Alerts
 export const getAlerts = async (req, res) => {
-  const alerts = await Alert.findAll({ include: ["product"], order: [["createdAt", "DESC"]] });
-  res.json(alerts);
-};
-
-export const createAlert = async (req, res) => {
   try {
-    const { productId, alert_type, message } = req.body;
-    const product = await Product.findByPk(productId);
-    if (!product) return res.status(404).json({ error: "Product not found" });
-
-    const alert = await Alert.create({ productId, alert_type, message });
-    res.status(201).json(alert);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    const alerts = await prisma.alert.findMany({
+      include: { product: true },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(alerts);
+  } catch (error) {
+    console.error("Error fetching alerts:", error);
+    res.status(500).json({ message: "Failed to fetch alerts" });
   }
 };
 
-export const resolveAlert = async (req, res) => {
-  const alert = await Alert.findByPk(req.params.id);
-  if (!alert) return res.status(404).json({ error: "Alert not found" });
+// 🟣 Create Alert
+export const createAlert = async (req, res) => {
+  try {
+    const { productId, alertType, message } = req.body;
 
-  alert.resolved = true;
-  await alert.save();
-  res.json(alert);
+    // Ensure product exists
+    const product = await prisma.product.findUnique({
+      where: { id: Number(productId) },
+    });
+    if (!product)
+      return res.status(404).json({ message: "Product not found" });
+
+    const alert = await prisma.alert.create({
+      data: { productId: Number(productId), alertType, message },
+    });
+
+    res.status(201).json(alert);
+  } catch (error) {
+    console.error("Error creating alert:", error);
+    res.status(400).json({ message: "Failed to create alert" });
+  }
+};
+
+// 🟠 Resolve Alert
+export const resolveAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const alert = await prisma.alert.update({
+      where: { id: Number(id) },
+      data: { resolved: true },
+    });
+
+    res.json(alert);
+  } catch (error) {
+    console.error("Error resolving alert:", error);
+    res.status(500).json({ message: "Failed to resolve alert" });
+  }
 };

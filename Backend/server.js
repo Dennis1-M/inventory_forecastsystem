@@ -1,60 +1,36 @@
-import { PrismaClient } from "@prisma/client";
-import dotenv from "dotenv";
 import express from "express";
-
-// Routes
-import authRoutes from "./routes/authRoutes.js";
-import inventoryRoutes from "./routes/inventoryRoutes.js";
+import cors from "cors";
+import dotenv from "dotenv";
 import productRoutes from "./routes/productRoutes.js";
-import saleRoutes from "./routes/saleRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import supplierRoutes from "./routes/supplierRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import salesRoutes from "./routes/salesRoutes.js";
+import alertRoutes from "./routes/alertRoutes.js";
+import inventoryRoutes from "./routes/inventoryRoutes.js";
 
 dotenv.config();
-
 const app = express();
-const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3000;
-
-// 🧩 Middleware
+app.use(cors());
 app.use(express.json());
 
-// 🚀 Root route
-app.get("/", (req, res) => {
-  res.send("🚀 Inventory API is running with Prisma and Auth!");
-});
-
-// 🔐 Auth routes
-app.use("/api/auth", authRoutes);
-
-// 📦 Product routes
+// ROUTES
 app.use("/api/products", productRoutes);
 
-// 🧾 Inventory routes
+app.use("/api/categories", categoryRoutes);
+
+app.use("/api/suppliers", supplierRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/auth", authRoutes);
+
+app.use("/api/sales", salesRoutes);
+
+app.use("/api/alerts", alertRoutes);
+
 app.use("/api/inventory", inventoryRoutes);
 
-// 💰 Sales routes
-
-app.use("/api/sales", saleRoutes);
-
-// ⚠️ 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
-
-// ⚠️ Global error handler
-app.use((err, req, res, next) => {
-  console.error("🔥 Server error:", err);
-  res.status(500).json({ error: "Internal Server Error" });
-});
-
-// ✅ Start server with DB connection
-app.listen(PORT, async () => {
-  try {
-    await prisma.$connect();
-    console.log("✅ Database connected successfully!");
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  } catch (error) {
-    console.error("❌ Database connection failed:", error);
-  }
-});
-// - --- IGNORE ---
-// End of recent edits
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -1,35 +1,75 @@
-import { Supplier } from "../models/Supplier.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
-export const getSuppliers = async (req, res) => {
-  const suppliers = await Supplier.findAll();
-  res.json(suppliers);
-};
-
+// 🟢 Create Supplier
 export const createSupplier = async (req, res) => {
   try {
-    const supplier = await Supplier.create(req.body);
+    const { name, email, phone, address } = req.body;
+
+    const supplier = await prisma.supplier.create({
+      data: { name, email, phone, address },
+    });
+
     res.status(201).json(supplier);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
+// 🔵 Get All Suppliers
+export const getSuppliers = async (req, res) => {
+  try {
+    const suppliers = await prisma.supplier.findMany();
+    res.json(suppliers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 🟣 Get Supplier by ID
+export const getSupplierById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!supplier)
+      return res.status(404).json({ message: "Supplier not found" });
+
+    res.json(supplier);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 🟠 Update Supplier
 export const updateSupplier = async (req, res) => {
   try {
-    const supplier = await Supplier.findByPk(req.params.id);
-    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    const { id } = req.params;
+    const { name, email, phone, address } = req.body;
 
-    await supplier.update(req.body);
+    const supplier = await prisma.supplier.update({
+      where: { id: Number(id) },
+      data: { name, email, phone, address },
+    });
+
     res.json(supplier);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
+// 🔴 Delete Supplier
 export const deleteSupplier = async (req, res) => {
-  const supplier = await Supplier.findByPk(req.params.id);
-  if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+  try {
+    const { id } = req.params;
 
-  await supplier.destroy();
-  res.json({ message: "Supplier deleted" });
+    await prisma.supplier.delete({ where: { id: Number(id) } });
+    res.json({ message: "Supplier deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
+// 🟠 Get Products by Supplier ID
