@@ -1,0 +1,7 @@
+{
+  "info": { "name":"Inventory API", "schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "item":[
+    { "name":"Login", "request":{ "method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{ \"email\":\"admin@example.com\", \"password\":\"password\" }"},"url":{"raw":"http://localhost:3000/api/auth/login","host":["http://localhost:3000"],"path":["api","auth","login"]}}}
+  ]
+}
+  

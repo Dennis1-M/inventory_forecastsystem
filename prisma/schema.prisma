@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// 🧠 User Model
+//
+model User {
+  id          Int         @id @default(autoincrement())
+  name        String?
+  email       String      @unique
+  password    String
+  role        Role        @default(USER)
+  inventories Inventory[] // 👈 linked inventories
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+//
+// 🛒 Product Model
+//
+model Product {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  stock       Int
+  createdAt   DateTime      @default(now())
+  inventories Inventory[]
+  sales       Sale[]
+  categoryId  Int?
+  category    Category?     @relation(fields: [categoryId], references: [id])
+
+  // ✅ Add supplier relation
+  supplierId  Int?
+  supplier    Supplier?     @relation(fields: [supplierId], references: [id])
+
+  Alert       Alert[]
+  ForecastRun ForecastRun[]
+}
+
+
+//
+// 📦 Inventory Model
+//
+model Inventory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  quantity    Int
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  productId Int         
+  product   Product     @relation(fields: [productId], references: [id])
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+}
+
+//
+// 💵 Sales Model
+//
+model Sale {
+  id         Int      @id @default(autoincrement())
+  quantity   Int
+  totalPrice Float
+  createdAt  DateTime @default(now())
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+//
+// 🗂️ Category Model
+//
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[] // optional relation
+}
+
+//
+// 🏢 Supplier Model
+//
+model Supplier {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ✅ Add this line – relation back to Product
+  products  Product[]
+}
+
+//
+// ⚠️ Alert Model
+//
+model Alert {
+  id        Int       @id @default(autoincrement())
+  alertType AlertType
+  message   String
+  resolved  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+enum AlertType {
+  EXPIRY
+  STOCK
+  FORECAST
+}
+
+model ForecastRun {
+  id        Int             @id @default(autoincrement())
+  productId Int
+  product   Product         @relation(fields: [productId], references: [id])
+  method    String // "LR","XGB","LSTM"
+  params    Json? // algorithm parameters
+  horizon   Int
+  mae       Float? // optional: store evaluation MAE
+  accuracy  Float? // optional: forecast accuracy %
+  createdAt DateTime        @default(now())
+  points    ForecastPoint[]
+}
+
+model ForecastPoint {
+  id        Int         @id @default(autoincrement())
+  runId     Int
+  run       ForecastRun @relation(fields: [runId], references: [id])
+  period    DateTime
+  predicted Float
+  lower95   Float?
+  upper95   Float?
+}
