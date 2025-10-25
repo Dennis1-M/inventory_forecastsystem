@@ -1,9 +1,10 @@
-export const allowRoles = (...allowedRoles) => {
+// middleware/roleMiddleware.js
+export const allowRoles = (...allowed) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Access denied. Insufficient role." });
-    }
+    const role = req.user?.role;
+    if (!role) return res.status(401).json({ error: "Unauthorized" });
+    if (!allowed.includes(role)) return res.status(403).json({ error: "Forbidden" });
     next();
   };
 };
-// - --- IGNORE ---
+

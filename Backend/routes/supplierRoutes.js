@@ -1,18 +1,9 @@
 import express from "express";
-import {
-  createSupplier,
-  deleteSupplier,
-  getSupplierById,
-  getSuppliers,
-  updateSupplier,
-} from "../controllers/supplierController.js";
-
+import { getSuppliers, getSupplierById, createSupplier, updateSupplier, deleteSupplier } from "../controllers/supplierController.js";
 const router = express.Router();
-
-router.post("/", createSupplier);
 router.get("/", getSuppliers);
 router.get("/:id", getSupplierById);
+router.post("/", createSupplier);
 router.put("/:id", updateSupplier);
 router.delete("/:id", deleteSupplier);
-
 export default router;

@@ -30,17 +30,24 @@ enum Role {
 // 🛒 Product Model
 //
 model Product {
-  id          Int         @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   description String?
   stock       Int
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime      @default(now())
   inventories Inventory[]
   sales       Sale[]
   categoryId  Int?
-  category    Category?   @relation(fields: [categoryId], references: [id])
+  category    Category?     @relation(fields: [categoryId], references: [id])
+
+  // ✅ Add supplier relation
+  supplierId  Int?
+  supplier    Supplier?     @relation(fields: [supplierId], references: [id])
+
   Alert       Alert[]
+  ForecastRun ForecastRun[]
 }
+
 
 //
 // 📦 Inventory Model
@@ -54,11 +61,9 @@ model Inventory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // 🔗 relation to Product
-  productId Int     @unique
-  product   Product @relation(fields: [productId], references: [id])
+  productId Int         
+  product   Product     @relation(fields: [productId], references: [id])
 
-  // 🔗 relation to User (fixes missing opposite relation)
   userId Int
   user   User @relation(fields: [userId], references: [id])
 }
@@ -99,6 +104,9 @@ model Supplier {
   address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // ✅ Add this line – relation back to Product
+  products  Product[]
 }
 
 //
@@ -120,4 +128,27 @@ enum AlertType {
   EXPIRY
   STOCK
   FORECAST
+}
+
+model ForecastRun {
+  id        Int             @id @default(autoincrement())
+  productId Int
+  product   Product         @relation(fields: [productId], references: [id])
+  method    String // "LR","XGB","LSTM"
+  params    Json? // algorithm parameters
+  horizon   Int
+  mae       Float? // optional: store evaluation MAE
+  accuracy  Float? // optional: forecast accuracy %
+  createdAt DateTime        @default(now())
+  points    ForecastPoint[]
+}
+
+model ForecastPoint {
+  id        Int         @id @default(autoincrement())
+  runId     Int
+  run       ForecastRun @relation(fields: [runId], references: [id])
+  period    DateTime
+  predicted Float
+  lower95   Float?
+  upper95   Float?
 }

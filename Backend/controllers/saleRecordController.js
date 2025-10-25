@@ -1,41 +1,33 @@
+// controllers/salesController.js
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-// 🟢 Get All Sales
 export const getSales = async (req, res) => {
   try {
-    const sales = await prisma.saleRecord.findMany({ include: { product: true } });
+    const sales = await prisma.sale.findMany({ include: { product: true }, orderBy: { createdAt: "desc" }});
     res.json(sales);
   } catch (err) {
+    console.error("getSales:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// 🟣 Create Sale
 export const createSale = async (req, res) => {
   try {
-    const { productId, quantity_sold } = req.body;
+    const { productId, quantity, totalPrice } = req.body;
+    const p = await prisma.product.findUnique({ where: { id: Number(productId) }});
+    if (!p) return res.status(404).json({ error: "Product not found" });
 
-    const product = await prisma.product.findUnique({ where: { id: Number(productId) } });
-    if (!product) return res.status(404).json({ error: "Product not found" });
+    // Use transaction to create sale and decrement product stock
+    const sale = await prisma.$transaction(async (tx) => {
+      const created = await tx.sale.create({ data: { productId: Number(productId), quantity: Number(quantity), totalPrice: Number(totalPrice) }});
+      await tx.product.update({ where: { id: Number(productId) }, data: { stock: { decrement: Number(quantity) } }});
+      return created;
+    });
 
-    if (product.quantity_in_stock < quantity_sold)
-      return res.status(400).json({ error: "Not enough stock available" });
-
-    // Update stock and record sale (transaction)
-    const [updatedProduct, sale] = await prisma.$transaction([
-      prisma.product.update({
-        where: { id: Number(productId) },
-        data: { quantity_in_stock: product.quantity_in_stock - quantity_sold },
-      }),
-      prisma.saleRecord.create({
-        data: { productId: Number(productId), quantity_sold: Number(quantity_sold) },
-      }),
-    ]);
-
-    res.status(201).json({ sale, updatedProduct });
+    res.status(201).json(sale);
   } catch (err) {
+    console.error("createSale:", err);
     res.status(400).json({ error: err.message });
   }
 };
-// 🟠 Get Sales by Product ID

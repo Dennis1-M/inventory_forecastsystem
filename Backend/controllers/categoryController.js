@@ -1,49 +1,47 @@
+// controllers/categoryController.js
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-// 🟢 Get All Categories
 export const getCategories = async (req, res) => {
   try {
-    const categories = await prisma.category.findMany();
-    res.json(categories);
+    const cats = await prisma.category.findMany({ include: { products: true }});
+    res.json(cats);
   } catch (err) {
+    console.error("getCategories:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// 🟣 Create Category
 export const createCategory = async (req, res) => {
   try {
-    const { name } = req.body;
-    const category = await prisma.category.create({ data: { name } });
-    res.status(201).json(category);
+    const { name, description } = req.body;
+    const cat = await prisma.category.create({ data: { name, description }});
+    res.status(201).json(cat);
   } catch (err) {
+    console.error("createCategory:", err);
     res.status(400).json({ error: err.message });
   }
 };
 
-// 🟠 Update Category
 export const updateCategory = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name } = req.body;
-    const category = await prisma.category.update({
-      where: { id: Number(id) },
-      data: { name },
-    });
-    res.json(category);
+    const id = Number(req.params.id);
+    const { name, description } = req.body;
+    const updated = await prisma.category.update({ where: { id }, data: { name, description }});
+    res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("updateCategory:", err);
+    res.status(400).json({ error: err.message });
   }
 };
 
-// 🔴 Delete Category
 export const deleteCategory = async (req, res) => {
   try {
-    const { id } = req.params;
-    await prisma.category.delete({ where: { id: Number(id) } });
+    const id = Number(req.params.id);
+    await prisma.category.delete({ where: { id }});
     res.json({ message: "Category deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("deleteCategory:", err);
+    res.status(400).json({ error: err.message });
   }
 };
