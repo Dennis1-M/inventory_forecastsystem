@@ -7,14 +7,31 @@ const FASTAPI_RUN = process.env.FASTAPI_URL || "http://127.0.0.1:5002";
 /** Helper to normalize fastapi prediction shapes */
 function normalizePredictions(payload) {
   if (!payload) return [];
-  const raw = Array.isArray(payload) ? payload : payload.predictions ?? payload.data ?? [];
+  const raw = Array.isArray(payload)
+    ? payload
+    : payload.predictions ?? payload.data ?? [];
   if (!Array.isArray(raw)) return [];
 
   return raw.map((item) => {
     const date = item.date ?? item.ds ?? item.period ?? item.timestamp;
-    const value = item.value ?? item.yhat ?? item.predicted ?? item.predictedValue ?? item.predicted_quantity;
-    const lower95 = item.lower95 ?? item.yhat_lower ?? item.lower ?? item.predicted_lower ?? null;
-    const upper95 = item.upper95 ?? item.yhat_upper ?? item.upper ?? item.predicted_upper ?? null;
+    const value =
+      item.value ??
+      item.yhat ??
+      item.predicted ??
+      item.predictedValue ??
+      item.predicted_quantity;
+    const lower95 =
+      item.lower95 ??
+      item.yhat_lower ??
+      item.lower ??
+      item.predicted_lower ??
+      null;
+    const upper95 =
+      item.upper95 ??
+      item.yhat_upper ??
+      item.upper ??
+      item.predicted_upper ??
+      null;
     return {
       date,
       value: Number(value ?? 0),
@@ -31,98 +48,118 @@ function normalizePredictions(payload) {
 export async function runForecastForProductInternal(productId, horizon = 14) {
   if (!productId) throw new Error("productId required");
 
-  // 1) fetch product & sales
-  const product = await prisma.product.findUnique({ where: { id: Number(productId) }});
+  // 1) Fetch product & sales
+  const product = await prisma.product.findUnique({
+    where: { id: Number(productId) },
+  });
   if (!product) return { ok: false, error: "Product not found" };
 
   const sales = await prisma.sale.findMany({
     where: { productId: Number(productId) },
-    orderBy: { date: "asc" }
+    orderBy: { date: "asc" },
   });
 
-  // allow forecasting even with sparse data — FastAPI may decide
-  // but if sales is completely empty we still proceed; FastAPI may error,
-  // Node layer will handle the error and return to caller.
-  // (If you prefer: return early if sales.length===0)
-
-  // 2) call FastAPI
+  // 2) Call Flask forecast service
   let resp;
   try {
     resp = await fetch(`${FASTAPI_RUN}/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product: product.name, horizon: Number(horizon), sales })
+      body: JSON.stringify({
+        productId: Number(productId),
+        horizon: Number(horizon),
+      }),
     });
   } catch (err) {
-    return { ok: false, error: "Forecast service unreachable", details: err.message };
+    return {
+      ok: false,
+      error: "Forecast service unreachable",
+      details: err.message,
+    };
   }
 
   let raw;
-  try { raw = await resp.json(); } catch (e) { raw = null; }
+  try {
+    raw = await resp.json();
+  } catch (e) {
+    raw = null;
+  }
 
   if (!resp.ok) {
-    return { ok: false, error: "Forecast service error", details: raw ?? resp.statusText };
+    return {
+      ok: false,
+      error: "Forecast service error",
+      details: raw ?? resp.statusText,
+    };
   }
 
   const predictions = normalizePredictions(raw);
   if (!predictions.length) {
-    return { ok: false, error: "Forecast service returned no predictions", raw };
+    return {
+      ok: false,
+      error: "Forecast service returned no predictions",
+      raw,
+    };
   }
 
   // 3) Save ForecastRun
   const run = await prisma.forecastRun.create({
     data: {
       productId: Number(productId),
-      method: (raw.model ?? raw.method) ?? "UNKNOWN",
+      method: raw.model ?? raw.method ?? "Prophet",
       params: raw.params ?? raw.meta ?? {},
       horizon: Number(horizon ?? predictions.length),
       mae: raw.mae ?? null,
       accuracy: raw.accuracy ?? null,
-    }
+    },
   });
 
   // 4) Save ForecastPoints
-  const pointsData = predictions.map(p => ({
+  const pointsData = predictions.map((p) => ({
     runId: run.id,
     period: new Date(p.date),
     predicted: Number(p.value),
     lower95: p.lower95 ?? null,
-    upper95: p.upper95 ?? null
+    upper95: p.upper95 ?? null,
   }));
 
   await prisma.forecastPoint.createMany({ data: pointsData });
 
-  // 5) Check aggregate predicted demand vs current stock and create alert if needed
-  // We will sum predicted over the horizon (predictions likely already equal horizon)
-  const predictedTotal = pointsData.reduce((s, r) => s + Number(r.predicted || 0), 0);
+  // 5) Check stock vs predicted demand → create alert if needed
+  const predictedTotal = pointsData.reduce(
+    (s, r) => s + Number(r.predicted || 0),
+    0
+  );
   let alertCreated = null;
 
   try {
-    if (product.stock == null) {
-      // if product.stock missing, skip alert creation
-    } else if (Number(product.stock) < predictedTotal) {
-      const message = `Predicted demand (${predictedTotal.toFixed(1)}) over horizon exceeds current stock (${product.stock}).`;
+    if (product.stock != null && Number(product.stock) < predictedTotal) {
+      const message = `Predicted demand (${predictedTotal.toFixed(
+        1
+      )}) over horizon exceeds current stock (${product.stock}).`;
       alertCreated = await prisma.alert.create({
         data: {
           alertType: "FORECAST",
           message,
-          productId: product.id
-        }
+          productId: product.id,
+        },
       });
     }
   } catch (err) {
-    // continue — do not fail the entire flow if alert creation fails
     console.error("Alert create error:", err);
   }
 
   return { ok: true, run, predictions, predictedTotal, alertCreated };
 }
 
-/** Express wrapper */
+/** Express wrapper for API */
 export const runForecastForProduct = async (req, res) => {
   try {
     const { productId, horizon } = req.body;
-    const result = await runForecastForProductInternal(productId, horizon || 14);
+    const result = await runForecastForProductInternal(
+      productId,
+      horizon || 14
+    );
     if (!result.ok) {
       return res.status(400).json(result);
     }
@@ -136,11 +173,12 @@ export const runForecastForProduct = async (req, res) => {
 /** Save forecast (manual) - expects arrays of predictions */
 export const saveForecast = async (req, res) => {
   try {
-    const { productId, predictions, method, params, horizon, mae, accuracy } = req.body;
-    if (!productId) return res.status(400).json({ error: "productId required" });
-    if (!predictions || !Array.isArray(predictions) || predictions.length === 0) {
+    const { productId, predictions, method, params, horizon, mae, accuracy } =
+      req.body;
+    if (!productId)
+      return res.status(400).json({ error: "productId required" });
+    if (!predictions || !Array.isArray(predictions) || predictions.length === 0)
       return res.status(400).json({ error: "predictions required" });
-    }
 
     const run = await prisma.forecastRun.create({
       data: {
@@ -149,16 +187,16 @@ export const saveForecast = async (req, res) => {
         params: params ?? {},
         horizon: Number(horizon ?? predictions.length),
         mae: mae ?? null,
-        accuracy: accuracy ?? null
-      }
+        accuracy: accuracy ?? null,
+      },
     });
 
-    const points = predictions.map(p => ({
+    const points = predictions.map((p) => ({
       runId: run.id,
       period: new Date(p.date),
       predicted: Number(p.value),
       lower95: p.lower95 ?? null,
-      upper95: p.upper95 ?? null
+      upper95: p.upper95 ?? null,
     }));
     await prisma.forecastPoint.createMany({ data: points });
 
@@ -169,7 +207,7 @@ export const saveForecast = async (req, res) => {
   }
 };
 
-/** Get history for product */
+/** Get forecast history for product */
 export const getForecastHistory = async (req, res) => {
   try {
     const productId = Number(req.params.productId);
@@ -178,7 +216,7 @@ export const getForecastHistory = async (req, res) => {
     const runs = await prisma.forecastRun.findMany({
       where: { productId },
       orderBy: { createdAt: "desc" },
-      include: { points: { orderBy: { period: "asc" } } }
+      include: { points: { orderBy: { period: "asc" } } },
     });
 
     return res.json({ ok: true, productId, history: runs });
@@ -187,7 +225,6 @@ export const getForecastHistory = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
-
 
 /** Get latest forecast run + its forecast points */
 export const getLatestForecast = async (productId) => {
