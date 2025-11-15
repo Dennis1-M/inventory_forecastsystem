@@ -22,4 +22,7 @@ def train_and_forecast(product_id, periods=7):
     future = model.make_future_dataframe(periods=periods)
     forecast = model.predict(future)
 
+    # ✅ Ensure no negative forecast values
+    forecast['yhat'] = forecast['yhat'].clip(lower=0)
+
     return forecast[['ds', 'yhat']]

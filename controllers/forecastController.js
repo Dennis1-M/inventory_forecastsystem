@@ -59,7 +59,7 @@ export async function runForecastForProductInternal(productId, horizon = 14) {
     orderBy: { date: "asc" },
   });
 
-  // 2) Call Flask forecast service
+  // 2) Call FastAPI forecast service
   let resp;
   try {
     resp = await fetch(`${FASTAPI_RUN}/run`, {
@@ -125,7 +125,7 @@ export async function runForecastForProductInternal(productId, horizon = 14) {
 
   await prisma.forecastPoint.createMany({ data: pointsData });
 
-  // 5) Check stock vs predicted demand → create alert if needed
+  // 5) Check aggregate predicted demand vs current stock and create alert if needed
   const predictedTotal = pointsData.reduce(
     (s, r) => s + Number(r.predicted || 0),
     0
@@ -133,17 +133,37 @@ export async function runForecastForProductInternal(productId, horizon = 14) {
   let alertCreated = null;
 
   try {
-    if (product.stock != null && Number(product.stock) < predictedTotal) {
-      const message = `Predicted demand (${predictedTotal.toFixed(
-        1
-      )}) over horizon exceeds current stock (${product.stock}).`;
-      alertCreated = await prisma.alert.create({
-        data: {
-          alertType: "FORECAST",
-          message,
-          productId: product.id,
-        },
-      });
+    if (product.stock == null) {
+      // skip alert creation if stock unknown
+    } else {
+      const stock = Number(product.stock);
+      const days = Number(horizon);
+
+      if (predictedTotal > stock) {
+        // Forecasted demand exceeds inventory
+        const message = `⚠️ Expected stock-out for ${product.name} within ${days} days. Predicted demand (${predictedTotal.toFixed(
+          1
+        )}) > stock (${stock}).`;
+        alertCreated = await prisma.alert.create({
+          data: {
+            alertType: "FORECAST",
+            message,
+            productId: product.id,
+          },
+        });
+      } else if (predictedTotal < stock * 0.3) {
+        // Overstock risk
+        const message = `ℹ️ ${product.name} may be overstocked. Predicted demand (${predictedTotal.toFixed(
+          1
+        )}) < 30% of stock (${stock}).`;
+        alertCreated = await prisma.alert.create({
+          data: {
+            alertType: "FORECAST",
+            message,
+            productId: product.id,
+          },
+        });
+      }
     }
   } catch (err) {
     console.error("Alert create error:", err);
@@ -241,3 +261,4 @@ export const getLatestForecast = async (productId) => {
     return null;
   }
 };
+

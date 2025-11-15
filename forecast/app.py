@@ -5,6 +5,17 @@ from sqlalchemy import text
 
 app = Flask(__name__)
 
+# ✅ Add a root route for testing
+@app.get("/")
+def home():
+    return jsonify({
+        "message": "Forecast API is running successfully!",
+        "available_endpoints": {
+            "POST /run": "Run a forecast for a given product",
+            "GET /forecasts/<product_id>": "Get the latest forecast for a product"
+        }
+    })
+
 @app.post("/run")
 def run_forecast():
     data = request.json
@@ -45,7 +56,6 @@ def run_forecast():
     return jsonify({"message": "Forecast saved", "runId": run_id})
 
 
-#  ABOVE app.run()
 @app.get("/forecasts/<int:product_id>")
 def get_forecast(product_id):
     """Return the most recent forecast for a given product."""
