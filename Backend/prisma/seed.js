@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const dairy = await prisma.category.upsert({ where: { name: "Dairy" }, update: {}, create: { name: "Dairy", description: "Dairy products" }});
   const snacks = await prisma.category.upsert({ where: { name: "Snacks" }, update: {}, create: { name: "Snacks", description: "Packaged snacks" }});
-  const supplier = await prisma.supplier.upsert({ where: { name: "Default Supplier" }, update: {}, create: { name: "Default Supplier", email: "supplier@example.com", phone: "0700000000" }});
+  const supplier = await prisma.supplier.upsert({ where: {email: "supplier@example.com" }, update: {}, create: { name: "Default Supplier", email: "supplier@example.com", phone: "0700000000" }});
 
   await prisma.product.upsert({
     where: { name: "Milk" },
