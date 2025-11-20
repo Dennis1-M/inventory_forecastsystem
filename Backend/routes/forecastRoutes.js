@@ -1,4 +1,3 @@
-// routes/forecastRoutes.js
 import express from "express";
 import {
   getForecastHistory,
@@ -6,29 +5,21 @@ import {
   runForecastForProduct,
   saveForecast,
 } from "../controllers/forecastController.js";
+
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ------------------------------------------------------
-// POST /api/forecast/run  -> manual run
-// ------------------------------------------------------
+// Manually trigger forecast
 router.post("/run", verifyToken, runForecastForProduct);
 
-// ------------------------------------------------------
-// POST /api/forecast/save -> save predictions manually
-// ------------------------------------------------------
+// Save forecasts from ML script or manual input
 router.post("/save", verifyToken, saveForecast);
 
-// ------------------------------------------------------
-// GET /api/forecast/history/:productId -> all runs
-// ------------------------------------------------------
+// History of forecast runs
 router.get("/history/:productId", verifyToken, getForecastHistory);
 
-// ------------------------------------------------------
-// GET /api/forecast/:productId
-// Returns latest OR auto-runs if missing
-// ------------------------------------------------------
+// Get latest forecast; auto-run if missing
 router.get("/:productId", verifyToken, async (req, res) => {
   try {
     const productId = Number(req.params.productId);
@@ -44,12 +35,12 @@ router.get("/:productId", verifyToken, async (req, res) => {
       return res.json({ ok: true, run: existing });
     }
 
-    // No previous run → auto-run forecast
+    // Auto-run forecast if none exists
     req.body = { productId, horizon };
     return runForecastForProduct(req, res);
 
   } catch (err) {
-    console.error("GET /:productId error:", err);
+    console.error("GET /forecast/:productId error:", err);
     return res.status(500).json({ error: err.message });
   }
 });

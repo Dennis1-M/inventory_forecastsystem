@@ -1,72 +1,57 @@
-// controllers/alertController.js
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
-const FASTAPI_RUN = process.env.FASTAPI_URL || "http://127.0.0.1:5002";
 
-export const getAlerts = async (req, res) => {
-  try {
-    const alerts = await prisma.alert.findMany({ include: { product: true }, orderBy: { createdAt: "desc" }});
-    res.json(alerts);
-  } catch (err) {
-    console.error("getAlerts:", err);
-    res.status(500).json({ message: "Failed to fetch alerts" });
-  }
+// Helper function to handle common try/catch logic
+const handleControllerError = (res, error, message) => {
+    console.error(message, error);
+    res.status(500).json({ 
+        message: message || "Internal server error.", 
+        error: error.message || "An unknown error occurred." 
+    });
 };
 
-export const createAlert = async (req, res) => {
-  try {
-    const { productId, alertType, message } = req.body;
-    const prod = await prisma.product.findUnique({ where: { id: Number(productId) }});
-    if (!prod) return res.status(404).json({ message: "Product not found" });
-    const a = await prisma.alert.create({ data: { productId: Number(productId), alertType, message }});
-    res.status(201).json(a);
-  } catch (err) {
-    console.error("createAlert:", err);
-    res.status(400).json({ message: "Failed to create alert" });
-  }
-};
+/**
+ * GET list of products currently below their low stock threshold.
+ */
+export const getLowStockAlerts = async (req, res) => {
+    const userId = req.user.id;
 
-export const resolveAlert = async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const updated = await prisma.alert.update({ where: { id }, data: { resolved: true }});
-    res.json(updated);
-  } catch (err) {
-    console.error("resolveAlert:", err);
-    res.status(500).json({ message: "Failed to resolve alert" });
-  }
-};
-
-export const pushAlerts = async (req, res) => {
-  try {
-    const alerts = await prisma.alert.findMany({ include: { product: true }});
-    const success = [];
-    const skipped = [];
-    const failed = [];
-    for (const a of alerts) {
-      const productName = a.product?.name;
-      if (!productName) { skipped.push({ product: null, reason: "no product linked" }); continue; }
-
-      try {
-        const resp = await fetch(`${FASTAPI_RUN}/run`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product: productName, horizon: req.body?.horizon || 14 })
+    try {
+        // Find all products and their associated inventory for the user
+        const productsWithInventory = await prisma.product.findMany({
+            where: { userId: userId },
+            select: {
+                id: true,
+                name: true,
+                lowStockThreshold: true,
+                unitPrice: true,
+                category: { select: { name: true } },
+                inventory: { 
+                    where: { userId: userId }, // Should only be one per product due to composite key
+                    select: { quantity: true } 
+                }
+            }
         });
 
-        if (resp.ok) { success.push({ product: productName }); }
-        else if (resp.status === 404) { skipped.push({ product: productName, reason: "Product not found in FastAPI" }); }
-        else {
-          const text = await resp.text();
-          failed.push({ product: productName, status: resp.status, text });
-        }
-      } catch (err) {
-        failed.push({ product: productName, reason: err.message });
-      }
+        // Filter the results in memory to identify low stock items
+        const lowStockAlerts = productsWithInventory
+            .filter(product => {
+                const currentStock = product.inventory[0]?.quantity || 0;
+                return currentStock <= product.lowStockThreshold;
+            })
+            .map(product => ({
+                productId: product.id,
+                productName: product.name,
+                currentStock: product.inventory[0]?.quantity || 0,
+                threshold: product.lowStockThreshold,
+                category: product.category.name,
+                // Add an alert message
+                alertMessage: `${product.name} is critically low (Stock: ${product.inventory[0]?.quantity || 0}, Threshold: ${product.lowStockThreshold}).`
+            }));
+
+        res.status(200).json(lowStockAlerts);
+    } catch (error) {
+        handleControllerError(res, error, "Failed to retrieve low stock alerts.");
     }
-    return res.json({ status: "completed", success, skipped, failed });
-  } catch (err) {
-    console.error("pushAlerts:", err);
-    return res.status(500).json({ message: "Server error while pushing alerts" });
-  }
 };

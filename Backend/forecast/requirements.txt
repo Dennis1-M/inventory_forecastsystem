@@ -6,3 +6,7 @@ psycopg2-binary
 scikit-learn
 prophet
 python-dotenv
+fastapi
+uvicorn
+xgboost
+requests # For fetching data from the Node.js API
