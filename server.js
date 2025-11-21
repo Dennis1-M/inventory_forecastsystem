@@ -1,60 +1,53 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
 
-import productRoutes from "./routes/productRoutes.js";
-import categoryRoutes from "./routes/categoryRoutes.js";
-import supplierRoutes from "./routes/supplierRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
-import salesRoutes from "./routes/salesRoutes.js";
-import alertRoutes from "./routes/alertRoutes.js";
-import inventoryRoutes from "./routes/inventoryRoutes.js";
-import forecastRoutes from "./routes/forecastRoutes.js";
+// Custom Middleware
+import { errorHandler, notFound } from './middleware/admin.js';
 
-import cron from "node-cron";
-import { runExpiryAndAgingChecks } from "./controllers/alertJob.js";
-
-// ✅ IMPORT forecast cron scheduler
-import { scheduleForecastCron } from "./jobs/forecastCron.js";
+// Routes
+import apiRoutes from './routes/apiRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 const app = express();
-app.use(cors());
+
+// ------------------------------
+// CORS
+// ------------------------------
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+];
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+
+// ------------------------------
+// Body Parsers
+// ------------------------------
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ROUTES
-app.use("/api/products", productRoutes);
-
-app.use("/api/categories", categoryRoutes);
-
-app.use("/api/suppliers", supplierRoutes);
-
-app.use("/api/users", userRoutes);
-
-app.use("/api/auth", authRoutes);
-
-app.use("/api/sales", salesRoutes);
-
-app.use("/api/alerts", alertRoutes);
-
-app.use("/api/inventory", inventoryRoutes);
-
-app.use("/api/forecast", forecastRoutes);
-
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-// ✅ START FORECAST CRON JOB (every 6 hours)
-scheduleForecastCron();
-
-// Existing: Run expiry and aging alerts daily at 02:00 AM
-cron.schedule("0 2 * * *", async () => {
-  try {
-    await runExpiryAndAgingChecks();
-    console.log("Expiry & aging checks run");
-  } catch (e) {
-    console.error("Expiry job error", e);
-  }
+// ------------------------------
+// Root
+// ------------------------------
+app.get('/', (req, res) => {
+    res.send('API is running...');
 });
+
+// ------------------------------
+// Routes
+// ------------------------------
+app.use('/api/auth', authRoutes);
+app.use('/api', apiRoutes);
+
+// ------------------------------
+// Error Handling Middleware
+// ------------------------------
+app.use(notFound);
+app.use(errorHandler);
+
+export default app;
