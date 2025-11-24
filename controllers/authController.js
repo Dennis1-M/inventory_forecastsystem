@@ -1,141 +1,101 @@
-import bcrypt from 'bcryptjs';
-import colors from 'colors';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../index.js'; // Assuming prisma client is initialized and exported from index.js
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { prisma } from "../index.js";
 
-// Ensure you set this securely in your environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key'; 
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
 
-// --- Helper function for error handling ---
-const handleAuthError = (res, error, operation) => {
-    console.error(colors.red(`Auth Error during ${operation}:`), error);
-    if (error.code === 'P2002') {
-        return res.status(409).json({ message: 'User with this email already exists.' });
-    }
-    return res.status(500).json({ message: `Failed to ${operation} due to a server error.` });
+// Generate JWT
+const generateToken = (user) => {
+    return jwt.sign(
+        { id: user.id, role: user.role },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+    );
 };
 
-/**
- * @route POST /api/auth/register
- * @desc Register a new user
- * @access Public (or restricted to admin creation in a real app)
- */
-export const register = async (req, res) => {
+// --------------------------------------------
+// REGISTER USER
+// --------------------------------------------
+export const registerUser = async (req, res) => {
     const { name, email, password, role } = req.body;
 
-    // Basic validation
     if (!name || !email || !password) {
-        return res.status(400).json({ message: 'Please enter all required fields: name, email, and password.' });
-    }
-    if (password.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+        return res.status(400).json({ message: "Name, email, and password are required." });
     }
 
     try {
-        // Hash the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashed = await bcrypt.hash(password, 10);
 
-        // Create the user
         const newUser = await prisma.user.create({
             data: {
                 name,
                 email,
-                password: hashedPassword,
-                // Default role to 'STAFF' if not provided, or validate against enum
-                role: role || 'STAFF', 
+                password: hashed,
+                role: role || "STAFF"
             },
-            select: { id: true, name: true, email: true, role: true } // Exclude password from response
+            select: { id: true, name: true, email: true, role: true }
         });
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: newUser.id, role: newUser.role }, 
-            JWT_SECRET, 
-            { expiresIn: '1h' }
-        );
+        const token = generateToken(newUser);
 
-        res.status(201).json({ 
-            token, 
-            user: newUser,
-            message: 'User registered successfully.'
+        res.status(201).json({
+            message: "User registered successfully.",
+            token,
+            user: newUser
         });
-    } catch (error) {
-        handleAuthError(res, error, 'user registration');
+
+    } catch (err) {
+        return res.status(500).json({ message: "Registration failed.", error: err.message });
     }
 };
 
-/**
- * @route POST /api/auth/login
- * @desc Authenticate user & get token
- * @access Public
- */
-export const login = async (req, res) => {
+// --------------------------------------------
+// LOGIN USER
+// --------------------------------------------
+export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Please enter both email and password.' });
-    }
-
     try {
-        // Find user by email
-        const user = await prisma.user.findUnique({
-            where: { email },
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return res.status(401).json({ message: "Invalid credentials." });
 
-        if (!user) {
-            return res.status(401).json({ message: 'Invalid Credentials.' });
-        }
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) return res.status(401).json({ message: "Invalid credentials." });
 
-        // Check password
-        const isMatch = await bcrypt.compare(password, user.password);
+        const token = generateToken(user);
 
-        if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid Credentials.' });
-        }
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: user.id, role: user.role }, 
-            JWT_SECRET, 
-            { expiresIn: '1h' }
-        );
-
-        // Return token and user data (excluding password)
         res.status(200).json({
+            message: "Login successful.",
             token,
             user: {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
-            },
-            message: 'Login successful.'
+                role: user.role
+            }
         });
-    } catch (error) {
-        handleAuthError(res, error, 'user login');
+
+    } catch (err) {
+        return res.status(500).json({ message: "Login failed.", error: err.message });
     }
 };
 
-/**
- * @route GET /api/auth/me
- * @desc Get current authenticated user details
- * @access Protected
- */
+// --------------------------------------------
+// GET CURRENT LOGGED-IN USER
+// --------------------------------------------
 export const getMe = async (req, res) => {
     try {
-        // req.user is set by the authentication middleware
         const user = await prisma.user.findUnique({
             where: { id: req.user.id },
             select: { id: true, name: true, email: true, role: true }
         });
 
-        if (!user) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
+        if (!user) return res.status(404).json({ message: "User not found." });
 
         res.status(200).json(user);
-    } catch (error) {
-        handleAuthError(res, error, 'fetching user details');
+
+    } catch (err) {
+        return res.status(500).json({ message: "Could not fetch user.", error: err.message });
     }
 };

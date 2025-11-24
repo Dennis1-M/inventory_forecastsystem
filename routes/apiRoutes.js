@@ -2,48 +2,100 @@ import { Router } from 'express';
 import { admin } from '../middleware/admin.js';
 import { protect } from '../middleware/auth.js';
 
-// --- Import Controllers ---
-import { getMe, login, register } from '../controllers/authController.js';
-import { createCategory, deleteCategory, getCategories, getCategoryById, updateCategory } from '../controllers/categoryController.js';
-import { generateForecast } from '../controllers/forecastingController.js'; // NEW
-import { adjustStock, getInventoryMovements, getLowStockAlerts, receiveStock } from '../controllers/inventoryController.js';
-import { createProduct, deleteProduct, getProductById, getProducts, updateProduct } from '../controllers/productController.js';
-import { createSale, deleteSale, getSaleById, getSales, updateSale } from '../controllers/saleController.js';
-import { createSupplier, deleteSupplier, getSupplierById, getSuppliers, updateSupplier } from '../controllers/supplierController.js';
-import { deleteUser, getUserById, getUsers, updateUser } from '../controllers/userController.js';
+// --- Auth Controllers ---
+import { registerUser, loginUser, getMe } from '../controllers/authController.js';
+
+// --- Category Controllers ---
+import { 
+    getCategories, 
+    getCategoryById, 
+    createCategory, 
+    updateCategory, 
+    deleteCategory 
+} from '../controllers/categoryController.js';
+
+// --- Supplier Controllers ---
+import { 
+    getSuppliers, 
+    getSupplierById, 
+    createSupplier, 
+    updateSupplier, 
+    deleteSupplier,
+    getSupplierDashboard
+} from '../controllers/supplierController.js';
+
+// --- Product Controllers ---
+import { 
+    getProducts, 
+    getProductById, 
+    createProduct, 
+    updateProduct, 
+    deleteProduct 
+} from '../controllers/productController.js';
+
+// --- Sales Controllers ---
+import { 
+    getSales, 
+    getSaleById, 
+    createSale, 
+    updateSale, 
+    deleteSale 
+} from '../controllers/saleController.js';
+
+// --- Inventory Controllers ---
+import { 
+    getInventoryMovements, 
+    receiveStock, 
+    adjustStock, 
+    getLowStockAlerts 
+} from '../controllers/inventoryController.js';
+
+// --- Users (Admin) ---
+import { 
+    getUsers, 
+    getUserById, 
+    updateUser, 
+    deleteUser 
+} from '../controllers/userController.js';
+
+// --- AI Forecasting ---
+import { generateForecast } from '../controllers/forecastingController.js';
 
 const router = Router();
 
-// --- 1. Authentication & Users (Public/Protected) ---
+/* ============================================================
+   AUTHENTICATION ROUTES (PUBLIC)
+============================================================ */
+router.post('/auth/register', registerUser);
+router.post('/auth/login', loginUser);
+router.get('/auth/me', protect, getMe);
 
-// Auth Routes (Public)
-router.post('/auth/register', register); // Public registration
-router.post('/auth/login', login); // Public login
-router.get('/auth/me', protect, getMe); // Get current user details
-
-// User Management Routes (Admin Only)
+/* ============================================================
+   USER MANAGEMENT (ADMIN ONLY)
+============================================================ */
 router.route('/users')
-    .get(protect, admin, getUsers); // GET all users (Admin)
+    .get(protect, admin, getUsers);
 
 router.route('/users/:id')
-    .get(protect, admin, getUserById) // GET user by ID (Admin)
-    .put(protect, admin, updateUser) // UPDATE user (Admin)
-    .delete(protect, admin, deleteUser); // DELETE user (Admin)
+    .get(protect, admin, getUserById)
+    .put(protect, admin, updateUser)
+    .delete(protect, admin, deleteUser);
 
-
-// --- 2. Product Catalog (Protected) ---
-
-// Category Routes
+/* ============================================================
+   CATEGORY ROUTES
+============================================================ */
 router.route('/categories')
-    .get(protect, getCategories) // GET all categories
-    .post(protect, admin, createCategory); // CREATE category (Admin)
+    .get(protect, getCategories)
+    .post(protect, admin, createCategory);
 
 router.route('/categories/:id')
     .get(protect, getCategoryById)
     .put(protect, admin, updateCategory)
     .delete(protect, admin, deleteCategory);
 
-// Supplier Routes
+/* ============================================================
+   SUPPLIER ROUTES
+============================================================ */
 router.route('/suppliers')
     .get(protect, getSuppliers)
     .post(protect, admin, createSupplier);
@@ -53,44 +105,44 @@ router.route('/suppliers/:id')
     .put(protect, admin, updateSupplier)
     .delete(protect, admin, deleteSupplier);
 
-// Product Routes
+// ✅ Supplier Dashboard route
+router.get('/suppliers/:id/dashboard', protect, admin, getSupplierDashboard);
+
+/* ============================================================
+   PRODUCT ROUTES
+============================================================ */
 router.route('/products')
-    .get(protect, getProducts) // GET all products
-    .post(protect, admin, createProduct); // CREATE product (Admin)
+    .get(protect, getProducts)
+    .post(protect, admin, createProduct);
 
 router.route('/products/:id')
     .get(protect, getProductById)
     .put(protect, admin, updateProduct)
     .delete(protect, admin, deleteProduct);
 
-
-// --- 3. Sales & Transactions (Protected) ---
-
-// Sale Routes
+/* ============================================================
+   SALES ROUTES
+============================================================ */
 router.route('/sales')
-    .get(protect, getSales) // GET all sales
-    .post(protect, createSale); // CREATE a new sale (Staff/Manager/Admin)
+    .get(protect, getSales)
+    .post(protect, createSale);
 
 router.route('/sales/:id')
     .get(protect, getSaleById)
-    .put(protect, updateSale) // Update sale metadata (notes, date)
-    .delete(protect, deleteSale); // Delete sale (reverses stock)
+    .put(protect, updateSale)
+    .delete(protect, deleteSale);
 
+/* ============================================================
+   INVENTORY ROUTES
+============================================================ */
+router.get('/inventory/movements', protect, getInventoryMovements);
+router.post('/inventory/receive', protect, receiveStock);
+router.post('/inventory/adjust', protect, adjustStock);
+router.get('/inventory/low-stock', protect, getLowStockAlerts);
 
-// --- 4. Inventory Management (Protected) ---
-
-// Inventory Movements
-router.route('/inventory/movements')
-    .get(protect, getInventoryMovements); // GET audit log of movements
-
-// Stock Operations
-router.post('/inventory/receive', protect, receiveStock); // Record receipt of stock (IN)
-router.post('/inventory/adjust', protect, adjustStock); // Record manual adjustment (IN/OUT)
-router.get('/inventory/low-stock', protect, getLowStockAlerts); // Get low stock products
-
-
-// --- 5. AI Forecasting (Protected) ---
-
-router.post('/forecast', protect, generateForecast); // Generate sales forecast
+/* ============================================================
+   FORECASTING ROUTE
+============================================================ */
+router.post('/forecast', protect, generateForecast);
 
 export default router;

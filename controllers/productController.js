@@ -1,190 +1,227 @@
-import colors from 'colors';
-import { prisma } from '../index.js'; // Assuming prisma client is initialized and exported from index.js
-
-// --- Helper function for error handling ---
-const handlePrismaError = (res, error, operation) => {
-    console.error(colors.red(`Prisma Error during ${operation}:`), error);
-    if (error.code === 'P2002') {
-        return res.status(409).json({ message: 'A product with that SKU or name already exists.' });
-    }
-    if (error.code === 'P2025') {
-        return res.status(404).json({ message: 'Product not found.' });
-    }
-    if (error.code === 'P2003') {
-        return res.status(400).json({ message: 'Invalid Category ID or Supplier ID provided.' });
-    }
-    return res.status(500).json({ message: `Failed to ${operation} due to a server error.` });
-};
+import colors from "colors";
+import { prisma } from "../index.js";
 
 /**
- * @route POST /api/products
- * @desc Create a new product
- * @access Protected
+ * Create product
+ * - Validates required fields (name, sku, unitPrice, categoryId)
+ * - Ensures category & optional supplier exist
  */
 export const createProduct = async (req, res) => {
-    // Note: initial stock is set via the Inventory module, not here.
-    const { name, sku, description, unitPrice, categoryId, supplierId, lowStockThreshold } = req.body;
+  const {
+    name,
+    sku,
+    description,
+    unitPrice,
+    categoryId,
+    supplierId,
+    lowStockThreshold,
+  } = req.body;
 
-    // Validate required fields
-    if (!name || !sku || unitPrice === undefined || categoryId === undefined) {
-        return res.status(400).json({ message: 'Product name, SKU, unit price, and category are required.' });
+  // Basic validation
+  if (!name || !sku || unitPrice === undefined || categoryId === undefined) {
+    return res.status(400).json({
+      message:
+        "Product creation requires: name, sku, unitPrice and categoryId.",
+    });
+  }
+
+  if (isNaN(Number(unitPrice)) || Number(unitPrice) < 0) {
+    return res.status(400).json({ message: "unitPrice must be a non-negative number." });
+  }
+
+  try {
+    // ensure category exists
+    const category = await prisma.category.findUnique({ where: { id: Number(categoryId) } });
+    if (!category) return res.status(400).json({ message: "Category not found." });
+
+    // ensure supplier exists if provided
+    if (supplierId !== undefined && supplierId !== null) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: Number(supplierId) } });
+      if (!supplier) return res.status(400).json({ message: "Supplier not found." });
     }
 
-    try {
-        const newProduct = await prisma.product.create({
-            data: {
-                name,
-                sku,
-                description: description || null,
-                unitPrice: parseFloat(unitPrice),
-                categoryId: parseInt(categoryId),
-                supplierId: supplierId ? parseInt(supplierId) : null,
-                lowStockThreshold: lowStockThreshold !== undefined ? parseInt(lowStockThreshold) : 10, // Default threshold
-                currentStock: 0, // Products start with 0 stock, stock is added via inventory/receive
-            },
-        });
-        res.status(201).json(newProduct);
-    } catch (error) {
-        handlePrismaError(res, error, 'creating product');
-    }
+    const newProduct = await prisma.product.create({
+      data: {
+        name,
+        sku,
+        description: description || null,
+        unitPrice: Number(unitPrice),
+        categoryId: Number(categoryId),
+        supplierId: supplierId ? Number(supplierId) : null,
+        lowStockThreshold:
+          lowStockThreshold !== undefined ? Number(lowStockThreshold) : 10,
+        currentStock: 0,
+      },
+    });
+
+    res.status(201).json({ message: "Product created.", product: newProduct });
+  } catch (error) {
+    console.error(colors.red("Prisma Error creating product:"), error);
+    res.status(500).json({ message: "Failed to create product.", error: error.message });
+  }
 };
 
 /**
- * @route GET /api/products
- * @desc Get all products (with optional filtering/searching)
- * @access Protected
+ * Get products with search + pagination + filters
+ * Query params:
+ *  - q: global text search (name or sku)
+ *  - category: categoryId
+ *  - supplier: supplierId
+ *  - minPrice, maxPrice
+ *  - page, limit
+ *  - sort: "name", "-name", "price", "-price", "stock", "-stock"
  */
 export const getProducts = async (req, res) => {
-    const { search, category, supplier, page = 1, limit = 25 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
+  try {
+    const {
+      q,
+      category,
+      supplier,
+      minPrice,
+      maxPrice,
+      page = 1,
+      limit = 25,
+      sort = "name",
+    } = req.query;
 
-    // Build the filtering conditions
-    let where = {};
-    if (search) {
-        // Search by name or SKU
-        where.OR = [
-            { name: { contains: search, mode: 'insensitive' } },
-            { sku: { contains: search, mode: 'insensitive' } },
-        ];
-    }
-    if (category) {
-        where.categoryId = parseInt(category);
-    }
-    if (supplier) {
-        where.supplierId = parseInt(supplier);
+    const skip = (Math.max(Number(page), 1) - 1) * Number(limit);
+    const take = Math.max(Number(limit) || 25, 1);
+
+    const where = {};
+
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { sku: { contains: q, mode: "insensitive" } },
+      ];
     }
 
-    try {
-        const [products, totalCount] = await prisma.$transaction([
-            prisma.product.findMany({
-                where,
-                include: {
-                    category: true, // Include category details
-                    supplier: true, // Include supplier details
-                },
-                orderBy: {
-                    name: 'asc',
-                },
-                skip,
-                take,
-            }),
-            prisma.product.count({ where }),
-        ]);
+    if (category) where.categoryId = Number(category);
+    if (supplier) where.supplierId = Number(supplier);
 
-        res.status(200).json({
-            data: products,
-            total: totalCount,
-            page: parseInt(page),
-            limit: parseInt(limit),
-            totalPages: Math.ceil(totalCount / limit),
-        });
-    } catch (error) {
-        handlePrismaError(res, error, 'fetching products');
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.unitPrice = {};
+      if (minPrice !== undefined) where.unitPrice.gte = Number(minPrice);
+      if (maxPrice !== undefined) where.unitPrice.lte = Number(maxPrice);
     }
+
+    // sorting
+    let orderBy = [];
+    if (sort) {
+      const key = sort.replace(/^-/, "");
+      const direction = sort.startsWith("-") ? "desc" : "asc";
+      if (key === "price") orderBy.push({ unitPrice: direction });
+      else if (key === "stock") orderBy.push({ currentStock: direction });
+      else orderBy.push({ [key]: direction });
+    } else {
+      orderBy.push({ name: "asc" });
+    }
+
+    const [products, total] = await prisma.$transaction([
+      prisma.product.findMany({
+        where,
+        include: { category: true, supplier: true },
+        orderBy,
+        skip,
+        take,
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    res.status(200).json({
+      data: products,
+      total,
+      page: Number(page),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    });
+  } catch (error) {
+    console.error(colors.red("Error fetching products:"), error);
+    res.status(500).json({ message: "Failed to fetch products.", error: error.message });
+  }
 };
 
 /**
- * @route GET /api/products/:id
- * @desc Get product by ID
- * @access Protected
+ * Get product by ID
  */
 export const getProductById = async (req, res) => {
-    const { id } = req.params;
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: "Invalid product id." });
 
-    try {
-        const product = await prisma.product.findUnique({
-            where: {
-                id: parseInt(id),
-            },
-            include: {
-                category: true,
-                supplier: true,
-            },
-        });
-
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found.' });
-        }
-        res.status(200).json(product);
-    } catch (error) {
-        handlePrismaError(res, error, 'fetching product by ID');
-    }
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { category: true, supplier: true },
+    });
+    if (!product) return res.status(404).json({ message: "Product not found." });
+    res.json(product);
+  } catch (error) {
+    console.error(colors.red("Error fetching product by id:"), error);
+    res.status(500).json({ message: "Failed to fetch product.", error: error.message });
+  }
 };
 
 /**
- * @route PUT /api/products/:id
- * @desc Update product details
- * @access Protected
+ * Update product
  */
 export const updateProduct = async (req, res) => {
-    const { id } = req.params;
-    const { name, sku, description, unitPrice, categoryId, supplierId, lowStockThreshold } = req.body;
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: "Invalid product id." });
 
-    try {
-        const updatedProduct = await prisma.product.update({
-            where: {
-                id: parseInt(id),
-            },
-            data: {
-                ...(name && { name }),
-                ...(sku && { sku }),
-                ...(description !== undefined && { description: description || null }),
-                ...(unitPrice !== undefined && { unitPrice: parseFloat(unitPrice) }),
-                ...(categoryId !== undefined && { categoryId: parseInt(categoryId) }),
-                ...(supplierId !== undefined && { supplierId: supplierId ? parseInt(supplierId) : null }),
-                ...(lowStockThreshold !== undefined && { lowStockThreshold: parseInt(lowStockThreshold) }),
-            },
-        });
-        res.status(200).json(updatedProduct);
-    } catch (error) {
-        handlePrismaError(res, error, 'updating product');
+  const {
+    name,
+    sku,
+    description,
+    unitPrice,
+    categoryId,
+    supplierId,
+    lowStockThreshold,
+  } = req.body;
+
+  try {
+    // Validate relationships if provided
+    if (categoryId !== undefined) {
+      const category = await prisma.category.findUnique({ where: { id: Number(categoryId) } });
+      if (!category) return res.status(400).json({ message: "Category not found." });
     }
+    if (supplierId !== undefined && supplierId !== null) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: Number(supplierId) } });
+      if (!supplier) return res.status(400).json({ message: "Supplier not found." });
+    }
+
+    const updated = await prisma.product.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(sku && { sku }),
+        ...(description !== undefined && { description: description || null }),
+        ...(unitPrice !== undefined && { unitPrice: Number(unitPrice) }),
+        ...(categoryId !== undefined && { categoryId: Number(categoryId) }),
+        ...(supplierId !== undefined && { supplierId: supplierId ? Number(supplierId) : null }),
+        ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
+      },
+      include: { category: true, supplier: true },
+    });
+
+    res.json({ message: "Product updated.", product: updated });
+  } catch (error) {
+    console.error(colors.red("Error updating product:"), error);
+    res.status(500).json({ message: "Failed to update product.", error: error.message });
+  }
 };
 
 /**
- * @route DELETE /api/products/:id
- * @desc Delete a product
- * @access Protected
+ * Delete product
  */
 export const deleteProduct = async (req, res) => {
-    const { id } = req.params;
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: "Invalid product id." });
 
-    try {
-        await prisma.product.delete({
-            where: {
-                id: parseInt(id),
-            },
-        });
-        // Note: Prisma cascade delete rules (set in schema) should handle related Sales and Inventory movements.
-        res.status(204).send();
-    } catch (error) {
-        if (error.code === 'P2003') {
-             // This might happen if cascade rules are not set correctly, or if there's a unique constraint on something
-            return res.status(400).json({ 
-                message: 'Cannot delete product. Associated data (e.g., sales history) still references this product.' 
-            });
-        }
-        handlePrismaError(res, error, 'deleting product');
-    }
+  try {
+    await prisma.product.delete({ where: { id } });
+    res.json({ message: "Product deleted." });
+  } catch (error) {
+    console.error(colors.red("Error deleting product:"), error);
+    res.status(500).json({ message: "Failed to delete product.", error: error.message });
+  }
 };

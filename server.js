@@ -2,8 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 
-// Custom Middleware
-import { errorHandler, notFound } from './middleware/admin.js';
+import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 
 // Routes
 import apiRoutes from './routes/apiRoutes.js';
@@ -16,8 +15,8 @@ const app = express();
 // CORS
 // ------------------------------
 const allowedOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
 ];
 
 app.use(cors({

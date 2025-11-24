@@ -1,15 +1,24 @@
 import express from "express";
-import { getSales, createSale, getSaleById, updateSale, deleteSale , getSalesForForecast  } from "../controllers/salesController.js";
+import { 
+    getSales, 
+    createSale, 
+    getSaleById, 
+    updateSale, 
+    deleteSale,
+    getSalesForForecast
+} from "../controllers/saleController.js";
+import { verifyToken } from "../middleware/authMiddleware.js";
+
 const router = express.Router();
 
-router.get("/forecast", getSalesForForecast);
-router.get("/", getSales);
-router.post("/", createSale);
-router.get("/:id", getSaleById);
-router.put("/:id", updateSale);
-router.delete("/:id", deleteSale);
+// Forecast route
+router.get("/forecast", verifyToken, getSalesForForecast);
 
-
-
+// Standard CRUD routes
+router.get("/", verifyToken, getSales);
+router.post("/", verifyToken, createSale);
+router.get("/:id", verifyToken, getSaleById);
+router.put("/:id", verifyToken, updateSale);
+router.delete("/:id", verifyToken, deleteSale);
 
 export default router;

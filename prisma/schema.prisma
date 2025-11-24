@@ -1,42 +1,37 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // Assuming PostgreSQL for robust transactions, but can be changed
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// Custom enum for user roles
+// --- Enums ---
 enum Role {
   ADMIN
   MANAGER
   STAFF
 }
 
-// Custom enum for inventory movement types
 enum MovementType {
-  RECEIPT          // Stock received from supplier
-  SALE             // Stock sold to customer (handled by SaleController)
-  SALE_REVERSAL    // Stock reversal due to sale deletion (handled by SaleController)
-  ADJUSTMENT_IN    // Inventory count adjustment (e.g., found missing stock)
-  ADJUSTMENT_OUT   // Inventory count adjustment (e.g., spoilage, lost stock)
+  RECEIPT
+  SALE
+  SALE_REVERSAL
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
 }
 
-// --- User Management ---
+// --- User ---
 model User {
   id                  Int                    @id @default(autoincrement())
   name                String
   email               String                 @unique
-  password            String // Hashed password
+  password            String
   role                Role                   @default(STAFF)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
 
-  // Relationships
   sales               Sale[]
   inventoryMovements  InventoryMovement[]
 }
@@ -55,72 +50,95 @@ model Supplier {
   contactEmail String?
   contactPhone String?
   products  Product[]
-  movements InventoryMovement[] // Link supplier to inventory receipts
+  movements InventoryMovement[]
 }
 
 model Product {
   id                  Int                    @id @default(autoincrement())
-  sku                 String                 @unique
+  sku                 String                 @unique @default("UNKNOWN_SKU")
   name                String                 @unique
   description         String?
-  unitPrice           Float // Selling price per unit
-  currentStock        Int                    @default(0) // Quantity currently on hand
+  unitPrice           Float                  @default(0)
+  currentStock        Int                    @default(0)
   lowStockThreshold   Int                    @default(10)
 
-  // Relationships
-  categoryId          Int
+  // Relations
+  categoryId          Int                    @default(1)
   category            Category               @relation(fields: [categoryId], references: [id])
   supplierId          Int?
   supplier            Supplier?              @relation(fields: [supplierId], references: [id])
 
   sales               Sale[]
   inventoryMovements  InventoryMovement[]
+  forecastRuns        ForecastRun[]
 
   @@index([categoryId])
   @@index([supplierId])
-  // This check constraint is advanced and sometimes requires native DB support/raw query, 
-  // but it's logically correct: current stock should not exceed 10000 (a safe limit)
-  @@check([currentStock >= 0])
 }
 
-
-// --- Sales & Transactions ---
+// --- Sales ---
 model Sale {
   id                  Int                    @id @default(autoincrement())
   productId           Int
-  quantitySold        Int
-  unitPriceSold       Float
-  totalSaleAmount     Float
+  quantitySold        Int                    @default(0)
+  unitPriceSold       Float                  @default(0)
+  totalSaleAmount     Float                  @default(0)
   saleDate            DateTime               @default(now())
   notes               String?
-  
-  // Relationships
+
   product             Product                @relation(fields: [productId], references: [id])
-  userId              Int
+  userId              Int                    @default(1)
   user                User                   @relation(fields: [userId], references: [id])
 
   @@index([productId])
   @@index([userId])
 }
 
-// --- Inventory & Auditing ---
+// --- Inventory Movements ---
 model InventoryMovement {
   id                  Int                    @id @default(autoincrement())
   productId           Int
   type                MovementType
-  quantity            Int // Positive for IN (RECEIPT, ADJUSTMENT_IN), Negative for OUT (SALE, ADJUSTMENT_OUT)
-  costPrice           Float? // Cost of the stock for receipts/adjustments (optional)
+  quantity            Int
+  costPrice           Float?
   description         String?
   timestamp           DateTime               @default(now())
 
-  // Relationships
   product             Product                @relation(fields: [productId], references: [id])
   userId              Int
   user                User                   @relation(fields: [userId], references: [id])
-  supplierId          Int?                   // Optional link for receipts
+  supplierId          Int?
   supplier            Supplier?              @relation(fields: [supplierId], references: [id])
 
   @@index([productId])
   @@index([userId])
   @@index([supplierId])
+}
+
+// --- Forecasting ---
+model ForecastRun {
+  id        Int             @id @default(autoincrement())
+  productId Int
+  method    String
+  horizon   Int
+  mae       Float?
+  accuracy  Float?
+  createdAt DateTime        @default(now())
+
+  product   Product         @relation(fields: [productId], references: [id])
+  points    ForecastPoint[]
+}
+
+model ForecastPoint {
+  id        Int        @id @default(autoincrement())
+  runId     Int
+  period    DateTime
+  predicted Float
+  lower95   Float?
+  upper95   Float?
+  createdAt DateTime    @default(now())
+
+  run       ForecastRun  @relation(fields: [runId], references: [id])
+
+  @@index([runId])
 }
