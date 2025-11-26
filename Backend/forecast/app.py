@@ -28,7 +28,7 @@ class PredictionOut(BaseModel):
 class RunResponse(BaseModel):
     ok: bool
     message: str
-    runId: str
+    runId: int
     mae: float
     accuracy: float
     model: str

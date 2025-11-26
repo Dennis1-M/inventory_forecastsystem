@@ -334,53 +334,56 @@ def train_and_forecast(product_id: int, periods: int = 14):
 # FUTURE PREDICTIONS
 # ------------------------------
 def _generate_future_predictions(model, df_ts, features, periods):
-    future_dates = [df_ts['ds'].max() + timedelta(days=i+1) for i in range(periods)]
+    future_dates = [pd.to_datetime(df_ts['ds'].max()) + timedelta(days=i+1) for i in range(periods)]
     preds = []
     last_row = df_ts.iloc[-1].copy()
     historical = df_ts['y'].tolist()
 
     for i, date in enumerate(future_dates):
         row = {}
-        # time features
-        row['dayofweek'] = date.dayofweek
-        row['dayofyear'] = date.timetuple().tm_yday
-        row['month'] = date.month
-        row['year'] = date.year
-        row['week_of_year'] = date.isocalendar()[1]
-        row['day_of_month'] = date.day
-        row['quarter'] = (date.month-1)//3 + 1
+        # time features (use weekday() which exists on datetime.date/datetime)
+        row['dayofweek'] = int(pd.to_datetime(date).weekday())
+        row['dayofyear'] = int(pd.to_datetime(date).timetuple().tm_yday)
+        row['month'] = int(pd.to_datetime(date).month)
+        row['year'] = int(pd.to_datetime(date).year)
+        row['week_of_year'] = int(pd.to_datetime(date).isocalendar()[1])
+        row['day_of_month'] = int(pd.to_datetime(date).day)
+        row['quarter'] = int((row['month'] - 1) // 3 + 1)
 
         # kenyan features
-        ke_holidays = holidays.Kenya(years=range(date.year-1, date.year+3))
-        row['is_weekend'] = int(date.dayofweek >= 5)
-        row['is_holiday'] = int(date in ke_holidays)
-        last_day = calendar.monthrange(date.year, date.month)[1]
-        row['is_month_end'] = int(date.day == last_day)
-        row['is_month_start'] = int(date.day == 1)
-        row['is_rainy_season'] = int(date.month in [3,4,5,10,11])
-        row['is_last_week'] = int(date.day >= 25)
-        row['is_school_holiday'] = int(date.month in [4,8,12])
-        row['is_back_to_school'] = int((date.month==1 and date.day<=15) or (date.month==5 and date.day<=10) or (date.month==9 and date.day<=10))
+        ke_holidays = holidays.Kenya(years=range(row['year'] - 1, row['year'] + 3))
+        row['is_weekend'] = int(row['dayofweek'] >= 5)
+        row['is_holiday'] = int(pd.to_datetime(date) in ke_holidays)
+        last_day = calendar.monthrange(row['year'], row['month'])[1]
+        row['is_month_end'] = int(row['day_of_month'] == last_day)
+        row['is_month_start'] = int(row['day_of_month'] == 1)
+        row['is_rainy_season'] = int(row['month'] in [3, 4, 5, 10, 11])
+        row['is_last_week'] = int(row['day_of_month'] >= 25)
+        row['is_school_holiday'] = int(row['month'] in [4, 8, 12])
+        row['is_back_to_school'] = int((row['month'] == 1 and row['day_of_month'] <= 15) or
+                                       (row['month'] == 5 and row['day_of_month'] <= 10) or
+                                       (row['month'] == 9 and row['day_of_month'] <= 10))
 
         # lag features
-        row['y_lag1'] = last_row['y'] if i==0 else preds[-1]['yhat']
-        for lag in [2,3,7,14,30]:
+        row['y_lag1'] = last_row['y'] if i == 0 else preds[-1]['yhat']
+        for lag in [2, 3, 7, 14, 30]:
             if i >= lag:
-                row[f'y_lag{lag}'] = preds[i-lag]['yhat']
+                row[f'y_lag{lag}'] = preds[i - lag]['yhat']
             else:
                 idx = len(historical) - (lag - i)
-                row[f'y_lag{lag}'] = historical[idx] if idx >= 0 else 0
+                row[f'y_lag{lag}'] = historical[idx] if idx >= 0 else 0.0
 
-        # rolling
+        # rolling using last 7 actual/predicted
         recent = (historical + [p['yhat'] for p in preds])[-7:]
-        row['rolling_mean_7'] = float(np.mean(recent)) if recent else 0.0
-        row['rolling_std_7'] = float(np.std(recent)) if recent else 0.0
+        row['rolling_mean_7'] = float(np.mean(recent)) if len(recent) > 0 else 0.0
+        row['rolling_std_7'] = float(np.std(recent)) if len(recent) > 0 else 0.0
 
-        X_arr = np.array([[row.get(f,0) for f in features]])
+        # build model input array in the same order as `features`
+        X_arr = np.array([[row.get(f, 0.0) for f in features]])
         yhat = float(model.predict(X_arr)[0])
         yhat = max(0.0, yhat)
 
-        row['ds'] = date
+        row['ds'] = pd.to_datetime(date)
         row['yhat'] = yhat
         preds.append(row)
         last_row['y'] = yhat
@@ -388,8 +391,11 @@ def _generate_future_predictions(model, df_ts, features, periods):
     out_df = pd.DataFrame(preds)
     out_df['yhat_lower'] = out_df['yhat'] * 0.8
     out_df['yhat_upper'] = out_df['yhat'] * 1.3
-    cols = ['ds','yhat','yhat_lower','yhat_upper'] + [f for f in features if f in out_df.columns]
+
+    # ensure requested columns exist and return a clean frame
+    cols = ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] + [f for f in features if f in out_df.columns]
     return out_df[cols]
+
 
 # ------------------------------
 # FEATURE IMPORTANCE
