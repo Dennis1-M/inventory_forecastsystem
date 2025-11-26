@@ -1,124 +1,84 @@
-import os
+"""
+FastAPI application exposing /run endpoint for forecasting.
+"""
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from typing import Optional
+import uuid
 import pandas as pd
-from flask import Flask, request, jsonify
-from db import engine
+
 from forecast_model import train_and_forecast
-from sqlalchemy import text
-from dotenv import load_dotenv
-
-load_dotenv()
-
-app = Flask(__name__)
-
-# ----------------------------------------
-# Helper to convert Pandas DateTime to ISO string for safe JSON passing
-# ----------------------------------------
-def _to_iso_safe(dt):
-    """Converts datetime to ISO format, handling Timezone-naive and Timezone-aware objects."""
-    if isinstance(dt, pd.Timestamp):
-        # Convert to UTC and then remove timezone info to match Prisma's expectation
-        if dt.tz is not None:
-            return dt.tz_convert('UTC').tz_localize(None).isoformat()
-        return dt.isoformat()
-    # Fallback for standard datetime objects
-    return dt.isoformat()
+from db_utils import save_forecast_to_db
 
 
-@app.get("/")
-def home():
-    return jsonify({
-        "message": "Forecast API is running successfully!",
-        "available_endpoints": {
-            "POST /run": "Run a forecast for a given product. Body: { productId, horizon }"
-        }
-    })
+import pandas as pd
 
-@app.post("/run")
-def run_forecast():
-    """
-    Triggers the ML model, saves results to the database, and returns the prediction.
-    """
-    data = request.json or {}
-    product_id = data.get("productId")
-    horizon = data.get("horizon", 14)
+app = FastAPI(title="Forecast Service", version="1.0")
 
-    if not product_id:
-        return jsonify({"error": "productId required"}), 400
+class RunRequest(BaseModel):
+    product_id: int = Field(..., description="Product id to forecast")
+    periods: Optional[int] = Field(14, description="Forecast horizon in days")
 
-    # train_and_forecast returns a dictionary: 
-    # { out_df, mae, accuracy, model } or None
-    forecast_result = train_and_forecast(product_id, horizon)
+class PredictionOut(BaseModel):
+    date: str
+    yhat: float
+    yhat_lower: float
+    yhat_upper: float
 
-    if forecast_result is None:
-        return jsonify({"error": "Insufficient sales data (need >= 7 days) or model failure."}), 400
-    
-    prediction_df = forecast_result.get("out_df")
-    mae = forecast_result.get("mae")
-    accuracy = forecast_result.get("accuracy")
-    model_method = forecast_result.get("model")
+class RunResponse(BaseModel):
+    ok: bool
+    message: str
+    runId: str
+    mae: float
+    accuracy: float
+    model: str
+    explanations: list
+    feature_importance: dict
+    predictions: list[PredictionOut]
 
-    if prediction_df is None or prediction_df.empty:
-        return jsonify({"error": "Forecast output is empty"}), 500
+@app.post("/run", response_model=RunResponse)
+def run_forecast(req: RunRequest):
+    product_id = req.product_id
+    periods = req.periods or 14
 
-    # --- Save Run + Points to DB (Transaction) ---
-    try:
-        with engine.begin() as conn:
-            # 1. INSERT the ForecastRun
-            run = conn.execute(text('''
-                INSERT INTO "ForecastRun" ("productId","method","horizon","mae","accuracy")
-                VALUES (:pid,:method,:horizon,:mae,:accuracy) RETURNING id
-            '''), {
-                "pid": int(product_id),
-                "method": model_method,
-                "horizon": int(horizon),
-                "mae": float(mae),
-                "accuracy": float(accuracy)
-            }).fetchone()
-            
-            run_id = run[0] if isinstance(run, tuple) else run.id
+    # 1️⃣ Generate forecast
+    result = train_and_forecast(product_id, periods=periods)
+    if not result:
+        raise HTTPException(status_code=422, detail="Insufficient data or forecasting failed")
 
-            # 2. INSERT the ForecastPoints
-            for _, row in prediction_df.iterrows():
-                conn.execute(text('''
-                    INSERT INTO "ForecastPoint" ("runId", period, predicted, lower95, upper95)
-                    VALUES (:run_id, :period, :pred, :lower, :upper)
-                '''), {
-                    "run_id": run_id,
-                    "period": _to_iso_safe(row["ds"]), # Use safe ISO converter
-                    "pred": float(row["yhat"]),
-                    "lower": float(row["yhat_lower"]),
-                    "upper": float(row["yhat_upper"])
-                })
-    except Exception as e:
-        print(f"Failed to save forecast to DB: {e}")
-        return jsonify({"error": "Failed to save forecast to DB", "details": str(e)}), 500
+    # 2️⃣ Save forecast to the DB
+    run_id = save_forecast_to_db(product_id, result, periods)
 
-    # --- Return Normalized JSON Response ---
+    # 3️⃣ Prepare response
+    out_df = result.get("out_df")
+    mae = result.get("mae", 0.0)
+    accuracy = result.get("accuracy", 0.0)
+    model_method = result.get("model", "unknown")
+    explanations = result.get("explanations", [])
+    feat_importance = result.get("feature_importance", {})
+
     predictions = []
-    for _, r in prediction_df.iterrows():
-        predictions.append({
-            "date": _to_iso_safe(r["ds"]),
-            "yhat": float(r["yhat"]),
-            "lower95": float(r["yhat_lower"]),
-            "upper95": float(r["yhat_upper"]),
-        })
+    for _, row in out_df.iterrows():
+        predictions.append(PredictionOut(
+            date=row['ds'].strftime("%Y-%m-%d"),
+            yhat=float(row['yhat']),
+            yhat_lower=float(row.get('yhat_lower', 0.0)),
+            yhat_upper=float(row.get('yhat_upper', 0.0))
+        ))
 
-    return jsonify({
-        "ok": True,
-        "message": "Forecast saved and ready to be queried.", 
-        "runId": run_id, 
-        "mae": mae,
-        "accuracy": accuracy,
-        "model": model_method,
-        "predictions": predictions
-    })
-
-
-# NOTE: The GET /forecasts/<int:product_id> endpoint is removed, 
-# as the Node.js controller handles all retrieval using Prisma (see forecastController.js).
+    return RunResponse(
+        ok=True,
+        message="Forecast generated and saved to DB",
+        runId=run_id,
+        mae=mae,
+        accuracy=accuracy,
+        model=model_method,
+        explanations=explanations,
+        feature_importance=feat_importance,
+        predictions=predictions
+    )
 
 
 if __name__ == "__main__":
-    # port configurable with PORT env var
-    port = int(os.getenv("PORT", 5002))
-    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG", "1") == "1")
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

@@ -4,9 +4,17 @@ numpy
 sqlalchemy
 psycopg2-binary
 scikit-learn
-prophet
 python-dotenv
-fastapi
-uvicorn
 xgboost
-requests # For fetching data from the Node.js API
+holidays
+statsmodels
+fastapi
+uvicorn[standard]
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+scikit-learn
+xgboost
+holidays
+statsmodels
