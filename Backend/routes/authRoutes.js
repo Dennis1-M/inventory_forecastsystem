@@ -1,14 +1,21 @@
 import express from "express";
-import { registerUser, loginUser } from "../controllers/authController.js";
+import {
+    registerUser,
+    loginUser,
+    getMe
+} from "../controllers/authController.js";
+
+// import { verifyToken } from "../middleware/authMiddleware.js";n
 
 const router = express.Router();
 
-// POST /api/auth/register
-// Public access: Allows new users to create accounts
+// Register a new user
 router.post("/register", registerUser);
 
-// POST /api/auth/login
-// Public access: Allows users to obtain a JWT token
+// Login user
 router.post("/login", loginUser);
+
+// Get current user (protected)
+router.get("/me", getMe);
 
 export default router;

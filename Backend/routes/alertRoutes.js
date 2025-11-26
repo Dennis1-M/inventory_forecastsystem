@@ -1,18 +1,27 @@
 import express from "express";
 import {
-  getAlerts,
-  createAlert,
-  resolveAlert,
-  pushAlerts,
+    getAlerts,
+    createAlert,
+    resolveAlert,
+    pushAlerts,
+    getLowStockAlerts,
 } from "../controllers/alertController.js";
 
 const router = express.Router();
 
+// Dynamic low stock alerts
+router.get("/low-stock", getLowStockAlerts);
+
+// Stored alerts
 router.get("/", getAlerts);
-router.post("/", createAlert); // Can be used by backend or cron
+
+// Create alert
+router.post("/", createAlert);
+
+// Resolve alert
 router.patch("/:id/resolve", resolveAlert);
 
-// Push alerts to UI or mobile devices
+// Push alerts externally (mobile or UI)
 router.post("/push", pushAlerts);
 
 export default router;
