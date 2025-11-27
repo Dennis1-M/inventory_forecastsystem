@@ -3,17 +3,17 @@ FastAPI application exposing /run endpoint for forecasting.
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
-import uuid
+from typing import Optional, List, Dict
 import pandas as pd
 
 from forecast_model import train_and_forecast
 from db_utils import save_forecast_to_db
 
-
-import pandas as pd
-
 app = FastAPI(title="Forecast Service", version="1.0")
+
+# --------------------------
+# Request & Response Models
+# --------------------------
 
 class RunRequest(BaseModel):
     product_id: int = Field(..., description="Product id to forecast")
@@ -32,52 +32,74 @@ class RunResponse(BaseModel):
     mae: float
     accuracy: float
     model: str
-    explanations: list
-    feature_importance: dict
-    predictions: list[PredictionOut]
+    explanations: List
+    feature_importance: Dict
+    predictions: List[PredictionOut]
+
+
+# --------------------------
+# /run endpoint
+# --------------------------
 
 @app.post("/run", response_model=RunResponse)
 def run_forecast(req: RunRequest):
     product_id = req.product_id
     periods = req.periods or 14
 
-    # 1️⃣ Generate forecast
+    # 1. Run forecast
     result = train_and_forecast(product_id, periods=periods)
     if not result:
         raise HTTPException(status_code=422, detail="Insufficient data or forecasting failed")
 
-    # 2️⃣ Save forecast to the DB
-    run_id = save_forecast_to_db(product_id, result, periods)
+    out_df = result["out_df"]
 
-    # 3️⃣ Prepare response
-    out_df = result.get("out_df")
-    mae = result.get("mae", 0.0)
-    accuracy = result.get("accuracy", 0.0)
-    model_method = result.get("model", "unknown")
-    explanations = result.get("explanations", [])
-    feat_importance = result.get("feature_importance", {})
+    # 2. Save to DB
+    try:
+        run_id = save_forecast_to_db(
+            product_id=product_id,
+            result=result,
+            periods=periods
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB save failed: {e}")
 
-    predictions = []
-    for _, row in out_df.iterrows():
-        predictions.append(PredictionOut(
-            date=row['ds'].strftime("%Y-%m-%d"),
-            yhat=float(row['yhat']),
-            yhat_lower=float(row.get('yhat_lower', 0.0)),
-            yhat_upper=float(row.get('yhat_upper', 0.0))
-        ))
+    # 3. Convert DF → list of predictions
+    predictions_list = [
+        PredictionOut(
+            date=str(row["ds"]),
+            yhat=float(row["yhat"]),
+            yhat_lower=float(row["yhat_lower"]),
+            yhat_upper=float(row["yhat_upper"])
+        )
+        for _, row in out_df.iterrows()
+    ]
 
+    # 4. Return response
     return RunResponse(
         ok=True,
         message="Forecast generated and saved to DB",
         runId=run_id,
-        mae=mae,
-        accuracy=accuracy,
-        model=model_method,
-        explanations=explanations,
-        feature_importance=feat_importance,
-        predictions=predictions
+        mae=float(result["mae"]),
+        accuracy=float(result["accuracy"]),
+        model=result["model"],
+        explanations=result["explanations"],
+        feature_importance=result["feature_importance"],
+        predictions=predictions_list
     )
 
+
+# --------------------------
+# Root checker
+# --------------------------
+
+@app.get("/")
+def root():
+    return {"message": "Forecast API is running", "status": "ok"}
+
+
+# --------------------------
+# Start server (if run directly)
+# --------------------------
 
 if __name__ == "__main__":
     import uvicorn
