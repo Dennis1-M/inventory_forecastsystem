@@ -1,27 +1,19 @@
-import express from "express";
-import {
-    getAlerts,
-    createAlert,
-    resolveAlert,
-    pushAlerts,
-    getLowStockAlerts,
-} from "../controllers/alertController.js";
+// backend/routes/alerts.js
+import { PrismaClient } from '@prisma/client';
+import express from 'express';
+const prisma = new PrismaClient();
 
 const router = express.Router();
 
-// Dynamic low stock alerts
-router.get("/low-stock", getLowStockAlerts);
+router.get('/', async (req, res) => {
+  const alerts = await prisma.alert.findMany({ orderBy: { createdAt: 'desc' }});
+  res.json(alerts);
+});
 
-// Stored alerts
-router.get("/", getAlerts);
-
-// Create alert
-router.post("/", createAlert);
-
-// Resolve alert
-router.patch("/:id/resolve", resolveAlert);
-
-// Push alerts externally (mobile or UI)
-router.post("/push", pushAlerts);
+router.post('/:id/read', async (req, res) => {
+  const id = parseInt(req.params.id);
+  await prisma.alert.update({ where: { id }, data: { status: 'READ' }});
+  res.json({ ok: true });
+});
 
 export default router;

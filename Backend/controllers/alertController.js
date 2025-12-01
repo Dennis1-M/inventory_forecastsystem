@@ -1,117 +1,66 @@
-import { PrismaClient } from "@prisma/client";
+// backend/controllers/alertController.js
+import colors from "colors";
+import { prisma } from "../index.js";
 
-const prisma = new PrismaClient();
-
-/** Shared error handler */
-const handleControllerError = (res, error, message) => {
-    console.error(message, error);
-    res.status(500).json({
-        message: message || "Internal server error.",
-        error: error.message || "An unknown error occurred.",
+/**
+ * GET unread alerts (isRead=false)
+ * GET /api/alerts/unread
+ */
+export const getUnreadAlerts = async (req, res) => {
+  try {
+    const alerts = await prisma.alert.findMany({
+      where: { isRead: false },
+      orderBy: { createdAt: "desc" },
+      include: {
+        product: { select: { id: true, name: true, currentStock: true } }
+      }
     });
+
+    res.status(200).json(alerts);
+  } catch (error) {
+    console.error(colors.red("Error fetching unread alerts:"), error);
+    res.status(500).json({ message: "Failed to fetch unread alerts.", error: error.message });
+  }
 };
 
 /**
- * GET low stock alerts (generated dynamically from Product + Inventory)
+ * MARK alert as read
+ * PUT /api/alerts/:id/read
  */
-export const getLowStockAlerts = async (req, res) => {
-    const userId = req.user.id;
+export const markAlertAsRead = async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid alert id." });
 
-    try {
-        const productsWithInventory = await prisma.product.findMany({
-            where: { userId },
-            select: {
-                id: true,
-                name: true,
-                lowStockThreshold: true,
-                category: { select: { name: true } },
-                inventory: {
-                    where: { userId },
-                    select: { quantity: true },
-                },
-            },
-        });
+  try {
+    const updated = await prisma.alert.update({
+      where: { id },
+      data: { isRead: true },
+    });
 
-        const lowStockAlerts = productsWithInventory
-            .filter((p) => {
-                const stock = p.inventory[0]?.quantity || 0;
-                return stock <= p.lowStockThreshold;
-            })
-            .map((p) => ({
-                productId: p.id,
-                productName: p.name,
-                currentStock: p.inventory[0]?.quantity || 0,
-                threshold: p.lowStockThreshold,
-                category: p.category.name,
-                alertMessage: `${p.name} is critically low (Stock: ${
-                    p.inventory[0]?.quantity || 0
-                }, Threshold: ${p.lowStockThreshold}).`,
-            }));
-
-        res.status(200).json(lowStockAlerts);
-    } catch (error) {
-        handleControllerError(res, error, "Failed to retrieve low stock alerts.");
-    }
+    res.status(200).json({ message: "Alert marked as read.", alert: updated });
+  } catch (error) {
+    console.error(colors.red("Error marking alert as read:"), error);
+    res.status(500).json({ message: "Failed to mark alert as read.", error: error.message });
+  }
 };
 
 /**
- * GET stored alerts table (only if you store alerts in DB)
- */
-export const getAlerts = async (req, res) => {
-    const userId = req.user.id;
-    try {
-        const alerts = await prisma.alert.findMany({
-            where: { userId },
-            orderBy: { createdAt: "desc" },
-        });
-        res.status(200).json(alerts);
-    } catch (error) {
-        handleControllerError(res, error, "Failed to load alerts.");
-    }
-};
-
-/**
- * POST create an alert
- */
-export const createAlert = async (req, res) => {
-    const userId = req.user.id;
-    const { message, productId } = req.body;
-
-    try {
-        const alert = await prisma.alert.create({
-            data: { userId, message, productId },
-        });
-        res.status(201).json(alert);
-    } catch (error) {
-        handleControllerError(res, error, "Failed to create alert.");
-    }
-};
-
-/**
- * PATCH resolve an alert
+ * MARK alert as resolved (optional)
+ * PUT /api/alerts/:id/resolve
  */
 export const resolveAlert = async (req, res) => {
-    const alertId = parseInt(req.params.id);
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid alert id." });
 
-    try {
-        const updated = await prisma.alert.update({
-            where: { id: alertId },
-            data: { resolved: true },
-        });
-        res.status(200).json(updated);
-    } catch (error) {
-        handleControllerError(res, error, "Failed to resolve alert.");
-    }
-};
+  try {
+    const updated = await prisma.alert.update({
+      where: { id },
+      data: { isResolved: true },
+    });
 
-/**
- * POST push alerts to client/mobile
- */
-export const pushAlerts = async (req, res) => {
-    try {
-        // Push logic (Firebase, Websockets, etc.)
-        res.status(200).json({ message: "Alerts pushed successfully." });
-    } catch (error) {
-        handleControllerError(res, error, "Failed to push alerts.");
-    }
+    res.status(200).json({ message: "Alert resolved.", alert: updated });
+  } catch (error) {
+    console.error(colors.red("Error resolving alert:"), error);
+    res.status(500).json({ message: "Failed to resolve alert.", error: error.message });
+  }
 };

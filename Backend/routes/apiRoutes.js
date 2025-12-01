@@ -2,60 +2,63 @@ import { Router } from 'express';
 import { admin } from '../middleware/admin.js';
 import { protect } from '../middleware/auth.js';
 
+
+import { getUnreadAlerts, markAlertAsRead, resolveAlert } from "../controllers/alertController.js";
+
 // --- Auth Controllers ---
-import { registerUser, loginUser, getMe } from '../controllers/authController.js';
+import { getMe, loginUser, registerUser } from '../controllers/authController.js';
 
 // --- Category Controllers ---
-import { 
-    getCategories, 
-    getCategoryById, 
-    createCategory, 
-    updateCategory, 
-    deleteCategory 
+import {
+    createCategory,
+    deleteCategory,
+    getCategories,
+    getCategoryById,
+    updateCategory
 } from '../controllers/categoryController.js';
 
 // --- Supplier Controllers ---
-import { 
-    getSuppliers, 
-    getSupplierById, 
-    createSupplier, 
-    updateSupplier, 
+import {
+    createSupplier,
     deleteSupplier,
-    getSupplierDashboard
+    getSupplierById,
+    getSupplierDashboard,
+    getSuppliers,
+    updateSupplier
 } from '../controllers/supplierController.js';
 
 // --- Product Controllers ---
-import { 
-    getProducts, 
-    getProductById, 
-    createProduct, 
-    updateProduct, 
-    deleteProduct 
+import {
+    createProduct,
+    deleteProduct,
+    getProductById,
+    getProducts,
+    updateProduct
 } from '../controllers/productController.js';
 
 // --- Sales Controllers ---
-import { 
-    getSales, 
-    getSaleById, 
-    createSale, 
-    updateSale, 
-    deleteSale 
+import {
+    createSale,
+    deleteSale,
+    getSaleById,
+    getSales,
+    updateSale
 } from '../controllers/saleController.js';
 
 // --- Inventory Controllers ---
-import { 
-    getInventoryMovements, 
-    receiveStock, 
-    adjustStock, 
-    getLowStockAlerts 
+import {
+    adjustStock,
+    getInventoryMovements,
+    getLowStockAlerts,
+    receiveStock
 } from '../controllers/inventoryController.js';
 
 // --- Users (Admin) ---
-import { 
-    getUsers, 
-    getUserById, 
-    updateUser, 
-    deleteUser 
+import {
+    deleteUser,
+    getUserById,
+    getUsers,
+    updateUser
 } from '../controllers/userController.js';
 
 // --- AI Forecasting ---
@@ -144,5 +147,13 @@ router.get('/inventory/low-stock', protect, getLowStockAlerts);
    FORECASTING ROUTE
 ============================================================ */
 router.post('/forecast', protect, generateForecast);
+
+
+/* ============================================================
+   ALERT ROUTES
+============================================================ */
+router.get("/unread", protect, getUnreadAlerts);
+router.put("/:id/read", protect, markAlertAsRead);
+router.put("/:id/resolve", protect, resolveAlert);
 
 export default router;

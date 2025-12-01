@@ -2,6 +2,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 
+import "./jobs/alertCron.js";
+// server.js (near the bottom, after app and routes setup)
+import "./jobs/inventoryCron.js";
+
+
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 
 // Routes

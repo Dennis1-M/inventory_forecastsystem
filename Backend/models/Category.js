@@ -7,3 +7,11 @@ export const Category = sequelize.define("Category", {
 }, {
   timestamps: true,
 });
+
+
+
+
+
+
+
+
