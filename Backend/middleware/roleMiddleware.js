@@ -1,10 +1,10 @@
-// middleware/roleMiddleware.js
-export const allowRoles = (...allowed) => {
+// Flexible role-based access control
+export const allowRoles = (...allowedRoles) => {
   return (req, res, next) => {
     const role = req.user?.role;
-    if (!role) return res.status(401).json({ error: "Unauthorized" });
-    if (!allowed.includes(role)) return res.status(403).json({ error: "Forbidden" });
+    if (!role) return res.status(401).json({ message: "Unauthorized." });
+    if (!allowedRoles.includes(role))
+      return res.status(403).json({ message: "Forbidden." });
     next();
   };
 };
-

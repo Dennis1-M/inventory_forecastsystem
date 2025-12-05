@@ -1,24 +1,21 @@
 import express from "express";
 import {
-    registerUser,
-    getUsers,
+    deleteUser,
     getUserById,
+    getUsers,
     updateUser,
-    deleteUser
 } from "../controllers/userController.js";
-
 import { protect } from "../middleware/auth.js";
-import { admin } from "../middleware/admin.js";
+import { allowRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Public Registration
-router.post("/register", registerUser);
+// All routes protected and ADMIN only
+router.use(protect, allowRoles("ADMIN"));
 
-// Admin-only user management
-router.get("/", protect, admin, getUsers);
-router.get("/:id", protect, admin, getUserById);
-router.put("/:id", protect, admin, updateUser);
-router.delete("/:id", protect, admin, deleteUser);
+router.get("/", getUsers);
+router.get("/:id", getUserById);
+router.put("/:id", updateUser);
+router.delete("/:id", deleteUser);
 
 export default router;
