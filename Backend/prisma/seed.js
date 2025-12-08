@@ -1,33 +1,40 @@
-// prisma/seed.js
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import csv from "csv-parser";
+import fs from "fs";
+
 const prisma = new PrismaClient();
 
-async function main() {
-  const dairy = await prisma.category.upsert({ where: { name: "Dairy" }, update: {}, create: { name: "Dairy", description: "Dairy products" }});
-  const snacks = await prisma.category.upsert({ where: { name: "Snacks" }, update: {}, create: { name: "Snacks", description: "Packaged snacks" }});
-  const supplier = await prisma.supplier.upsert({ where: {email: "supplier@example.com" }, update: {}, create: { name: "Default Supplier", email: "supplier@example.com", phone: "0700000000" }});
-
-  await prisma.product.upsert({
-    where: { name: "Milk" },
-    update: {},
-    create: { name: "Milk", description: "Full cream 1L", stock: 200, categoryId: dairy.id, supplierId: supplier.id }
+async function importCSV(filePath) {
+  return new Promise((resolve) => {
+    const rows = [];
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("data", (data) => rows.push(data))
+      .on("end", () => resolve(rows));
   });
-
-  await prisma.product.upsert({
-    where: { name: "Biscuits" },
-    update: {},
-    create: { name: "Biscuits", description: "Assorted pack", stock: 120, categoryId: snacks.id, supplierId: supplier.id }
-  });
-
-  const hashed = await bcrypt.hash("password", 10);
-  await prisma.user.upsert({
-    where: { email: "admin@example.com" },
-    update: {},
-    create: { name: "Admin", email: "admin@example.com", password: hashed, role: "ADMIN" }
-  });
-
-  console.log("Seed complete");
 }
 
-main().catch(e => { console.error(e); process.exit(1); }).finally(async () => { await prisma.$disconnect(); });
+async function main() {
+  const products = await importCSV("D:/FINALPROJECT2/backend/data/product_record.csv");
+  const inventory = await importCSV("D:/FINALPROJECT2/backend/data/inventory_record.csv");
+  const sales = await importCSV("D:/FINALPROJECT2/backend/data/sale_record.csv");
+
+  // Insert products
+  for (const p of products) {
+    await prisma.product.create({ data: p });
+  }
+
+  // Insert inventory records
+  for (const i of inventory) {
+    await prisma.inventoryMovement.create({ data: i });
+  }
+
+  // Insert sales records
+  for (const s of sales) {
+    await prisma.sale.create({ data: s });
+  }
+
+  console.log("✓ Data imported");
+}
+
+main();
