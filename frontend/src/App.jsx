@@ -8,30 +8,43 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import Login from "./pages/Login";
 
+
 import StaffDashboard from "./pages/staff/StaffDashboard";
+
+import LandingPage from "./pages/LandingPage";
+
+import Register from "./pages/Register";
+
+import ProductListPage from "./pages/ProductListPage";
+
+import ManagerReceiveStockPage from "./pages/ManagerReceiveStockPage";
+
+import StaffRestockPage from "./pages/StaffRestockPage";
+
+import InventoryHistoryPage from "./pages/InventoryHistoryPage";
+
+
+
+
+
 
 export default function App() {
   return (
     <BrowserRouter>
-    
       <Routes>
-
-        <Route path="/" element={<Navigate to="/login" replace />} />
-
-        <Route path="/admin/create-user" element={<CreateUser />} />
-        
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
-
+        <Route path="/register" element={<Register />} />
+        <Route path="/products" element={<ProductListPage />} />
+        <Route path="/inventory/history" element={<InventoryHistoryPage />} />
+        <Route path="/admin/create-user" element={<CreateUser />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
-        <Route path="/staff/dashboard" element={<StaffDashboard />} />
-
-        <Route path="*" element={<Navigate to="/login" replace />} />
-
         <Route path="/admin/users" element={<ViewUsers />} />
-
+        <Route path="/admin/receive-stock" element={<ManagerReceiveStockPage />} />
+        <Route path="/staff/dashboard" element={<StaffDashboard />} />
+        <Route path="/staff/restock" element={<StaffRestockPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
     </BrowserRouter>
   );
 }

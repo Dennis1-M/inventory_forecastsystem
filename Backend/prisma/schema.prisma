@@ -11,6 +11,7 @@ datasource db {
 // ENUMS
 // --------------------------
 enum Role {
+  SUPERADMIN
   ADMIN
   MANAGER
   STAFF
@@ -33,11 +34,15 @@ model User {
   email               String               @unique
   password            String
   role                Role                 @default(STAFF)
+  createdBy           Int?
+  isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
   sales               Sale[]
   inventoryMovements  InventoryMovement[]
+  createdByUser       User?                @relation("CreatedUsers", fields: [createdBy], references: [id])
+  registeredUsers     User[]               @relation("CreatedUsers")
 }
 
 // --------------------------

@@ -9,15 +9,21 @@ import {
     Users,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../store/auth";
 
 export default function Sidebar({ isOpen = false }) {
+  const { logout } = useAuth();
+
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Products", icon: Package, path: "/admin/products" },
+    { name: "Products", icon: Package, path: "/products" },
+    { name: "Receive Stock", icon: ShoppingCart, path: "/admin/receive-stock" },
+    { name: "Inventory History", icon: History, path: "/inventory/history" },
     { name: "Sales", icon: ShoppingCart, path: "/admin/sales" },
     { name: "Forecast", icon: LineChart, path: "/admin/forecast" },
     { name: "Forecast History", icon: History, path: "/admin/history" },
     { name: "Users", icon: Users, path: "/admin/users" },
+    { name: "Register User", icon: Users, path: "/register" },
     { name: "Settings", icon: Settings, path: "/admin/settings" },
   ];
 
@@ -49,8 +55,14 @@ export default function Sidebar({ isOpen = false }) {
         })}
       </nav>
 
-      <button className="mt-auto flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg">
-        <LogOut className="w-5 h-5" /> <span>Logout</span>
+      {/* LOGOUT BUTTON FIXED */}
+      <button
+        onClick={logout}
+        aria-label="Logout"
+        className="mt-auto flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg"
+      >
+        <LogOut className="w-5 h-5" />
+        <span>Logout</span>
       </button>
     </aside>
   );

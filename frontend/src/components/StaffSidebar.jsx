@@ -1,10 +1,23 @@
-import { History, LayoutDashboard, LineChart, LogOut, Package, Settings, ShoppingCart } from "lucide-react";
+import {
+  History,
+  LayoutDashboard,
+  LineChart,
+  LogOut,
+  Package,
+  Settings,
+  ShoppingCart,
+} from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../store/auth";
 
 export default function StaffSidebar({ isOpen = false }) {
+  const { logout } = useAuth();
+
   const menu = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/staff/dashboard" },
-    { name: "Products", icon: Package, path: "/staff/products" },
+    { name: "Products", icon: Package, path: "/products" },
+    { name: "Restock Shelves", icon: ShoppingCart, path: "/staff/restock" },
+    { name: "Inventory History", icon: History, path: "/inventory/history" },
     { name: "Sales", icon: ShoppingCart, path: "/staff/sales" },
     { name: "Forecast", icon: LineChart, path: "/staff/forecast" },
     { name: "Forecast History", icon: History, path: "/staff/history" },
@@ -39,8 +52,14 @@ export default function StaffSidebar({ isOpen = false }) {
         })}
       </nav>
 
-      <button className="mt-auto flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg">
-        <LogOut className="w-5 h-5" /> <span>Logout</span>
+      {/* FIXED LOGOUT */}
+      <button
+        onClick={logout}
+        aria-label="Logout"
+        className="mt-auto flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg"
+      >
+        <LogOut className="w-5 h-5" />
+        <span>Logout</span>
       </button>
     </aside>
   );

@@ -31,6 +31,7 @@ import {
 import {
     createProduct,
     deleteProduct,
+    getLowStockProducts,
     getProductById,
     getProducts,
     updateProduct
@@ -117,6 +118,8 @@ router.get('/suppliers/:id/dashboard', protect, admin, getSupplierDashboard);
 router.route('/products')
     .get(protect, getProducts)
     .post(protect, admin, createProduct);
+
+router.get('/products/low-stock', protect, getLowStockProducts);
 
 router.route('/products/:id')
     .get(protect, getProductById)

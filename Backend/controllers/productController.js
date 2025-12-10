@@ -225,3 +225,29 @@ export const deleteProduct = async (req, res) => {
     res.status(500).json({ message: "Failed to delete product.", error: error.message });
   }
 };
+
+/**
+ * Get low stock products
+ */
+export const getLowStockProducts = async (req, res) => {
+  try {
+    // Fetch all products and filter in-memory (simpler approach)
+    const products = await prisma.product.findMany({
+      include: { category: true, supplier: true },
+      orderBy: { currentStock: "asc" },
+    });
+
+    // Filter products where currentStock <= lowStockThreshold
+    const lowStockProducts = products.filter(
+      (p) => p.currentStock <= p.lowStockThreshold
+    );
+
+    res.status(200).json({
+      data: lowStockProducts,
+      total: lowStockProducts.length,
+    });
+  } catch (error) {
+    console.error(colors.red("Error fetching low stock products:"), error);
+    res.status(500).json({ message: "Failed to fetch low stock products.", error: error.message });
+  }
+};

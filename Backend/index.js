@@ -4,7 +4,7 @@ import app from './server.js';
 
 export const prisma = new PrismaClient();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 const connectAndStartServer = async () => {
     try {

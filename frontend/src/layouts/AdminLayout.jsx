@@ -1,4 +1,4 @@
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/AdminSidebar";
 import Topbar from "@/components/Topbar";
 import { useState } from "react";
 
