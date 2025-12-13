@@ -5,10 +5,12 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getLowStockProducts,
 } from "../controllers/productController.js";
 
 const router = express.Router();
 
+router.get("/low-stock", getLowStockProducts);
 router.get("/", getProducts);
 router.get("/:id", getProductById);
 

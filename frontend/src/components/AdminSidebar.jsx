@@ -22,8 +22,8 @@ export default function Sidebar({ isOpen = false }) {
     { name: "Sales", icon: ShoppingCart, path: "/admin/sales" },
     { name: "Forecast", icon: LineChart, path: "/admin/forecast" },
     { name: "Forecast History", icon: History, path: "/admin/history" },
-    { name: "Users", icon: Users, path: "/admin/users" },
-    { name: "Register User", icon: Users, path: "/register" },
+    { name: "All Users", icon: Users, path: "/admin/users" },
+    { name: "Register User", icon: Users, path: "/auth/register-user" },
     { name: "Settings", icon: Settings, path: "/admin/settings" },
   ];
 

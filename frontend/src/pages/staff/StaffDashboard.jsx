@@ -3,16 +3,21 @@ import axiosClient from "@/lib/axiosClient";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import OptimizedChart from "@/components/OptimizedChart";
 import { exportAsCSV } from "@/utils/exportUtils";
-import { AlertCircle, CheckCircle, Clock, Package, TrendingUp, Download } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, Package, TrendingUp, Download, Zap, ListTodo, BarChart3 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 export default function StaffDashboard() {
+  const navigate = useNavigate();
+  const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  
   const [stats, setStats] = useState({
     tasksCompleted: 0,
     itemsRestocked: 0,
     lowStockAlerts: 0,
     performanceScore: 0,
+    hoursWorked: 0,
+    itemsScanned: 0,
   });
   const [products, setProducts] = useState([]);
   const [activityTrend, setActivityTrend] = useState([]);
@@ -54,6 +59,8 @@ export default function StaffDashboard() {
         itemsRestocked: 156,
         lowStockAlerts: lowStock.length,
         performanceScore: 92,
+        hoursWorked: 40,
+        itemsScanned: 487,
       });
 
       setProducts(restockNeeded);
@@ -81,6 +88,20 @@ export default function StaffDashboard() {
       trend: "+18",
     },
     {
+      label: "Items Scanned",
+      value: stats.itemsScanned,
+      icon: BarChart3,
+      color: "bg-purple-500",
+      trend: "+45",
+    },
+    {
+      label: "Performance",
+      value: `${stats.performanceScore}%`,
+      icon: TrendingUp,
+      color: "bg-amber-500",
+      trend: "+3%",
+    },
+    {
       label: "Stock Alerts",
       value: stats.lowStockAlerts,
       icon: AlertCircle,
@@ -88,11 +109,11 @@ export default function StaffDashboard() {
       trend: "-1",
     },
     {
-      label: "Performance Score",
-      value: `${stats.performanceScore}%`,
-      icon: TrendingUp,
-      color: "bg-purple-500",
-      trend: "+3%",
+      label: "Hours Worked",
+      value: stats.hoursWorked,
+      icon: Clock,
+      color: "bg-indigo-500",
+      trend: "This week",
     },
   ];
 
@@ -100,15 +121,24 @@ export default function StaffDashboard() {
     <StaffLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Staff Dashboard</h1>
-          <p className="text-gray-600 mt-2">Track your daily tasks and inventory activities</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Staff Dashboard</h1>
+            <p className="text-gray-600 mt-2">Track daily tasks and activities • {user?.name}</p>
+          </div>
+          <button
+            onClick={() => navigate("/staff/restock")}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Restock Items</span>
+          </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           {loading ? (
-            Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} type="metric" />)
+            Array(6).fill(0).map((_, i) => <LoadingSkeleton key={i} type="metric" />)
           ) : (
             statCards.map((stat, idx) => {
               const Icon = stat.icon;

@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import csv from "csv-parser";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const prisma = new PrismaClient();
 
@@ -15,9 +20,9 @@ async function importCSV(filePath) {
 }
 
 async function main() {
-  const products = await importCSV("D:/FINALPROJECT2/backend/data/product_record.csv");
-  const inventory = await importCSV("D:/FINALPROJECT2/backend/data/inventory_record.csv");
-  const sales = await importCSV("D:/FINALPROJECT2/backend/data/sale_record.csv");
+  const products = await importCSV(path.join(__dirname, "../data/product_record.csv"));
+  const inventory = await importCSV(path.join(__dirname, "../data/inventory_record.csv"));
+  const sales = await importCSV(path.join(__dirname, "../data/sale_record.csv"));
 
   // Insert products
   for (const p of products) {

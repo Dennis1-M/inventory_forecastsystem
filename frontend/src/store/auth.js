@@ -30,9 +30,11 @@ export const useAuth = create((set) => ({
       // Persist
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
+      localStorage.setItem("user", JSON.stringify(user));
 
       // Redirect per role
-      if (user.role === "ADMIN") window.location.href = "/admin/dashboard";
+      if (user.role === "SUPERADMIN") window.location.href = "/admin/dashboard";
+      else if (user.role === "ADMIN") window.location.href = "/admin/dashboard";
       else if (user.role === "MANAGER") window.location.href = "/manager/dashboard";
       else if (user.role === "STAFF") window.location.href = "/staff/dashboard";
 

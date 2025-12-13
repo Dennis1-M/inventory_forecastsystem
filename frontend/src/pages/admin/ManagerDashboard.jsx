@@ -3,16 +3,21 @@ import axiosClient from "@/lib/axiosClient";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import OptimizedChart from "@/components/OptimizedChart";
 import { exportAsCSV } from "@/utils/exportUtils";
-import { AlertCircle, Package, TrendingDown, TrendingUp, Download } from "lucide-react";
+import { AlertCircle, Package, TrendingDown, TrendingUp, Download, Zap, BarChart3, Activity, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 export default function ManagerDashboard() {
+  const navigate = useNavigate();
+  const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  
   const [stats, setStats] = useState({
     totalInventoryValue: 0,
     lowStockItems: 0,
     totalProducts: 0,
     stockTurnsPerMonth: 0,
+    overStockItems: 0,
+    reorderNeeded: 0,
   });
   const [products, setProducts] = useState([]);
   const [inventoryTrend, setInventoryTrend] = useState([]);
@@ -58,6 +63,8 @@ export default function ManagerDashboard() {
         lowStockItems: lowStock.length,
         totalProducts: allProducts.length,
         stockTurnsPerMonth: 4.2, // Mock value
+        overStockItems: allProducts.filter(p => p.currentStock > p.overStockLimit).length,
+        reorderNeeded: lowStock.length,
       });
 
       setProducts(urgentProducts);
@@ -85,11 +92,11 @@ export default function ManagerDashboard() {
       trend: "-1.2%",
     },
     {
-      label: "Total Products",
-      value: stats.totalProducts,
-      icon: Package,
-      color: "bg-purple-500",
-      trend: "+0.5%",
+      label: "Overstock Items",
+      value: stats.overStockItems,
+      icon: BarChart3,
+      color: "bg-yellow-500",
+      trend: "+0.8%",
     },
     {
       label: "Stock Turns/Month",
@@ -104,9 +111,18 @@ export default function ManagerDashboard() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-          <p className="text-gray-600 mt-2">Inventory Management & Stock Control</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
+            <p className="text-gray-600 mt-2">Inventory Management & Stock Control • {user?.name}</p>
+          </div>
+          <button
+            onClick={() => navigate("/admin/receive-stock")}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Receive Stock</span>
+          </button>
         </div>
 
         {/* Stats Cards */}

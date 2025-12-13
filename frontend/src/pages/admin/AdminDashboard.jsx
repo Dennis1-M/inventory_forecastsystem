@@ -5,16 +5,22 @@ import axiosClient from "@/lib/axiosClient";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import OptimizedChart from "@/components/OptimizedChart";
 import { exportAsCSV } from "@/utils/exportUtils";
-import { AlertCircle, Package, ShoppingCart, TrendingUp, Download } from "lucide-react";
+import { AlertCircle, Package, ShoppingCart, TrendingUp, Download, Users, DollarSign, BarChart3, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const userRole = localStorage.getItem("role");
+  const user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSales: 0,
     forecastAccuracy: 0,
     lowStockCount: 0,
+    totalRevenue: 0,
+    totalUsers: 0,
   });
   const [salesTrend, setSalesTrend] = useState([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState([]);
@@ -59,6 +65,8 @@ export default function AdminDashboard() {
         totalSales: Math.round(totalSales),
         forecastAccuracy: 92,
         lowStockCount: lowStock.length,
+        totalRevenue: Math.round(totalSales * 0.35), // Assume 35% margin
+        totalUsers: 8,
       });
 
       setSalesTrend(mockSalesTrend);
@@ -69,8 +77,8 @@ export default function AdminDashboard() {
         totalProducts: 6,
         totalSales: 24200,
         forecastAccuracy: 92,
-        lowStockCount: 2,
-      });
+        lowStockCount: 2,        totalRevenue: 8470,
+        totalUsers: 8,      });
       setSalesTrend(mockSalesTrend);
       setCategoryBreakdown(mockCategoryBreakdown);
     } finally {
@@ -96,16 +104,27 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 text-sm mt-1">Welcome back! Here's your inventory overview.</p>
+        {/* Header with Welcome */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600 text-sm mt-1">Welcome back, {user?.name}! Here's your system overview.</p>
+          </div>
+          {userRole === "SUPERADMIN" && (
+            <button
+              onClick={() => navigate("/admin/users")}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+            >
+              <Users className="w-4 h-4" />
+              <span>Manage Users</span>
+            </button>
+          )}
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           {loading ? (
-            Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} type="metric" />)
+            Array(6).fill(0).map((_, i) => <LoadingSkeleton key={i} type="metric" />)
           ) : (
             <>
               <MetricCard
@@ -116,11 +135,18 @@ export default function AdminDashboard() {
                 subtitle="In catalog"
               />
               <MetricCard
-                icon={ShoppingCart}
-                title="Total Inventory Value"
+                icon={DollarSign}
+                title="Inventory Value"
                 value={`$${(stats.totalSales / 1000).toFixed(1)}K`}
                 color="text-green-600"
-                subtitle="Across all products"
+                subtitle="Current stock"
+              />
+              <MetricCard
+                icon={BarChart3}
+                title="Revenue (Est.)"
+                value={`$${(stats.totalRevenue / 1000).toFixed(1)}K`}
+                color="text-emerald-600"
+                subtitle="This month"
               />
               <MetricCard
                 icon={TrendingUp}
@@ -131,10 +157,17 @@ export default function AdminDashboard() {
               />
               <MetricCard
                 icon={AlertCircle}
-                title="Low Stock Items"
+                title="Low Stock"
                 value={stats.lowStockCount}
                 color="text-red-600"
-                subtitle="Require attention"
+                subtitle="Needs attention"
+              />
+              <MetricCard
+                icon={Users}
+                title="Team Members"
+                value={stats.totalUsers}
+                color="text-indigo-600"
+                subtitle="Total users"
               />
             </>
           )}

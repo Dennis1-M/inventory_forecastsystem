@@ -1,15 +1,14 @@
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useMemo } from "react";
 
-const OptimizedChart = ({ data, type = "line", config = {} }) => {
+const OptimizedChart = ({ data, type = "line", config = {}, height = 300 }) => {
   const {
-    dataKey = "value",
     xAxisKey = "date",
     title,
-    height = 300,
-    color = "#3b82f6",
     showLegend = true,
     showGrid = true,
+    lines = [],
+    bars = [],
   } = config;
 
   // Optimize data - limit to 100 points
@@ -44,7 +43,22 @@ const OptimizedChart = ({ data, type = "line", config = {} }) => {
             {axisProps.yAxis}
             {axisProps.tooltip}
             {axisProps.legend}
-            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} />
+            {lines.length > 0 ? (
+              lines.map((line, idx) => (
+                <Line
+                  key={idx}
+                  type="monotone"
+                  dataKey={line.key}
+                  stroke={line.stroke}
+                  strokeWidth={2}
+                  strokeDasharray={line.strokeDasharray}
+                  dot={false}
+                  name={line.name}
+                />
+              ))
+            ) : (
+              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={false} />
+            )}
           </LineChart>
         )}
 
@@ -54,7 +68,20 @@ const OptimizedChart = ({ data, type = "line", config = {} }) => {
             {axisProps.xAxis}
             {axisProps.yAxis}
             {axisProps.tooltip}
-            <Area type="monotone" dataKey={dataKey} fill={color} stroke={color} />
+            {lines.length > 0 ? (
+              lines.map((line, idx) => (
+                <Area
+                  key={idx}
+                  type="monotone"
+                  dataKey={line.key}
+                  fill={line.stroke}
+                  stroke={line.stroke}
+                  name={line.name}
+                />
+              ))
+            ) : (
+              <Area type="monotone" dataKey="value" fill="#3b82f6" stroke="#3b82f6" />
+            )}
           </AreaChart>
         )}
 
@@ -65,7 +92,18 @@ const OptimizedChart = ({ data, type = "line", config = {} }) => {
             {axisProps.yAxis}
             {axisProps.tooltip}
             {axisProps.legend}
-            <Bar dataKey={dataKey} fill={color} />
+            {bars.length > 0 ? (
+              bars.map((bar, idx) => (
+                <Bar
+                  key={idx}
+                  dataKey={bar.key}
+                  fill={bar.fill}
+                  name={bar.name}
+                />
+              ))
+            ) : (
+              <Bar dataKey="value" fill="#3b82f6" />
+            )}
           </BarChart>
         )}
       </ResponsiveContainer>
