@@ -2,7 +2,10 @@ import LowStockAlertsWidget from "@/components/LowStockAlertsWidget";
 import ProductTabs from "@/components/ProductTabs";
 import AdminLayout from "@/layouts/AdminLayout";
 import axiosClient from "@/lib/axiosClient";
-import { AlertCircle, Package, ShoppingCart, TrendingUp } from "lucide-react";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
+import OptimizedChart from "@/components/OptimizedChart";
+import { exportAsCSV } from "@/utils/exportUtils";
+import { AlertCircle, Package, ShoppingCart, TrendingUp, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -101,58 +104,75 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard
-            icon={Package}
-            title="Total Products"
-            value={stats.totalProducts}
-            color="text-blue-600"
-            subtitle="In catalog"
-          />
-          <MetricCard
-            icon={ShoppingCart}
-            title="Total Inventory Value"
-            value={`$${(stats.totalSales / 1000).toFixed(1)}K`}
-            color="text-green-600"
-            subtitle="Across all products"
-          />
-          <MetricCard
-            icon={TrendingUp}
-            title="Forecast Accuracy"
-            value={`${stats.forecastAccuracy}%`}
-            color="text-purple-600"
-            subtitle="Last 7 days"
-          />
-          <MetricCard
-            icon={AlertCircle}
-            title="Low Stock Items"
-            value={stats.lowStockCount}
-            color="text-red-600"
-            subtitle="Require attention"
-          />
+          {loading ? (
+            Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} type="metric" />)
+          ) : (
+            <>
+              <MetricCard
+                icon={Package}
+                title="Total Products"
+                value={stats.totalProducts}
+                color="text-blue-600"
+                subtitle="In catalog"
+              />
+              <MetricCard
+                icon={ShoppingCart}
+                title="Total Inventory Value"
+                value={`$${(stats.totalSales / 1000).toFixed(1)}K`}
+                color="text-green-600"
+                subtitle="Across all products"
+              />
+              <MetricCard
+                icon={TrendingUp}
+                title="Forecast Accuracy"
+                value={`${stats.forecastAccuracy}%`}
+                color="text-purple-600"
+                subtitle="Last 7 days"
+              />
+              <MetricCard
+                icon={AlertCircle}
+                title="Low Stock Items"
+                value={stats.lowStockCount}
+                color="text-red-600"
+                subtitle="Require attention"
+              />
+            </>
+          )}
         </div>
 
         {/* Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sales Trend */}
           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Sales Trend vs Forecast</h3>
-              <p className="text-sm text-gray-600">Last 7 days comparison</p>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Sales Trend vs Forecast</h3>
+                <p className="text-sm text-gray-600">Last 7 days comparison</p>
+              </div>
+              <button
+                onClick={() => exportAsCSV(salesTrend, 'sales_trend.csv')}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+                aria-label="Download sales trend data"
+              >
+                <Download className="w-4 h-4" />
+                <span className="text-sm">Export</span>
+              </button>
             </div>
             {loading ? (
-              <p className="text-gray-500">Loading chart...</p>
+              <LoadingSkeleton type="card" />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={salesTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} name="Actual Sales" />
-                  <Line type="monotone" dataKey="forecast" stroke="#a855f7" strokeWidth={2} name="Forecast" strokeDasharray="5 5" />
-                </LineChart>
-              </ResponsiveContainer>
+              <OptimizedChart
+                data={salesTrend}
+                type="line"
+                height={300}
+                config={{
+                  lines: [
+                    { key: 'sales', stroke: '#3b82f6', name: 'Actual Sales' },
+                    { key: 'forecast', stroke: '#a855f7', name: 'Forecast', strokeDasharray: '5 5' }
+                  ]
+                }}
+              />
             )}
           </div>
 
@@ -162,25 +182,35 @@ export default function AdminDashboard() {
 
         {/* Category Breakdown */}
         <div className="bg-white p-6 rounded-xl shadow">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Sales by Category</h3>
-            <p className="text-sm text-gray-600">Revenue breakdown</p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Sales by Category</h3>
+              <p className="text-sm text-gray-600">Revenue breakdown</p>
+            </div>
+            <button
+              onClick={() => exportAsCSV(categoryBreakdown, 'category_breakdown.csv')}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+              aria-label="Download category breakdown data"
+            >
+              <Download className="w-4 h-4" />
+              <span className="text-sm">Export</span>
+            </button>
           </div>
           {loading ? (
-            <p className="text-gray-500">Loading chart...</p>
+            <LoadingSkeleton type="card" />
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="sales" fill="#3b82f6" name="Units Sold" />
-                <Bar yAxisId="right" dataKey="revenue" fill="#10b981" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
+            <OptimizedChart
+              data={categoryBreakdown}
+              type="bar"
+              height={300}
+              config={{
+                bars: [
+                  { key: 'sales', fill: '#3b82f6', name: 'Units Sold' },
+                  { key: 'revenue', fill: '#10b981', name: 'Revenue ($)' }
+                ]
+              }}
+            />
           )}
         </div>
 

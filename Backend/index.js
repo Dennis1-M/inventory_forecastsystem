@@ -11,6 +11,15 @@ const connectAndStartServer = async () => {
         await prisma.$connect();
         console.log(colors.cyan.bold('PostgreSQL Database Connected via Prisma'));
 
+        // Import cron jobs AFTER Prisma connects successfully
+        try {
+            await import('./jobs/alertCron.js');
+            await import('./jobs/inventoryCron.js');
+            console.log(colors.green.bold('✅ Cron jobs initialized'));
+        } catch (cronError) {
+            console.error(colors.yellow.bold('⚠️ Warning: Cron jobs failed to initialize'), cronError.message);
+        }
+
         app.listen(PORT, () => {
             console.log(colors.yellow.bold(`Server running on port ${PORT}`));
         });

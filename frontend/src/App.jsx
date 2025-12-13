@@ -6,6 +6,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
+import ManagerDashboard from "./pages/admin/ManagerDashboard";
+
+import ForecastingAnalyticsPage from "./pages/admin/ForecastingAnalyticsPage";
+
 import Login from "./pages/Login";
 
 
@@ -23,6 +27,8 @@ import StaffRestockPage from "./pages/StaffRestockPage";
 
 import InventoryHistoryPage from "./pages/InventoryHistoryPage";
 
+import ErrorBoundary from "./components/ErrorBoundary";
+
 
 
 
@@ -30,8 +36,9 @@ import InventoryHistoryPage from "./pages/InventoryHistoryPage";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -41,10 +48,13 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/users" element={<ViewUsers />} />
         <Route path="/admin/receive-stock" element={<ManagerReceiveStockPage />} />
+        <Route path="/admin/forecast" element={<ForecastingAnalyticsPage />} />
+        <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/restock" element={<StaffRestockPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
