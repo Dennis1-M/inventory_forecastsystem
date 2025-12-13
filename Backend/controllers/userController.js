@@ -17,6 +17,8 @@ export const getUsers = async (req, res) => {
 // ---------------- Get User by ID ----------------
 export const getUserById = async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID." });
+
   try {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -32,9 +34,11 @@ export const getUserById = async (req, res) => {
 // ---------------- Update User ----------------
 export const updateUser = async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, email, password, role } = req.body;
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID." });
 
+  const { name, email, password, role } = req.body;
   const data = {};
+
   if (name) data.name = name;
   if (email) data.email = email;
   if (role) data.role = role;
@@ -55,8 +59,9 @@ export const updateUser = async (req, res) => {
 // ---------------- Delete User ----------------
 export const deleteUser = async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID." });
 
-  if (req.user.id === id)
+  if (parseInt(req.user.id) === id)
     return res.status(403).json({ message: "Cannot delete your own account." });
 
   try {

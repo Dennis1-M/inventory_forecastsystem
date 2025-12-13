@@ -9,18 +9,18 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
   const userRole = localStorage.getItem("role");
   const token = localStorage.getItem("token");
-  
+
   // Check if user is authorized to register (ADMIN or SUPERADMIN)
   const isAuthorized = token && (userRole === "SUPERADMIN" || userRole === "ADMIN");
 
   useEffect(() => {
-    // If not authorized, redirect to login
     if (!isAuthorized) {
       window.location.href = "/login";
     }
-  }, []);
+  }, [isAuthorized]);
 
   const handleRegisterUser = async (e) => {
     e.preventDefault();
@@ -36,18 +36,13 @@ export default function Register() {
         role: newRole.toUpperCase(),
       };
 
-      const res = await axiosClient.post("/api/auth/register", userData);
+      await axiosClient.post("/api/auth/register", userData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Success!
       setSuccessMessage(`✅ ${newRole.toUpperCase()} registered successfully!`);
-      
-      // Clear form
-      setName("");
-      setEmail("");
-      setPassword("");
-      setNewRole("admin");
+      setName(""); setEmail(""); setPassword(""); setNewRole("admin");
 
-      // Auto-clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       const message = err.response?.data?.message || err.message || "Registration failed";
@@ -69,7 +64,7 @@ export default function Register() {
             <p className="flex items-start gap-3">
               <span className="text-2xl font-bold opacity-50">1</span>
               <span>
-                {userRole === "SUPERADMIN" 
+                {userRole === "SUPERADMIN"
                   ? "Register ADMIN accounts to manage operations"
                   : "Register MANAGER and STAFF accounts"}
               </span>
@@ -86,9 +81,7 @@ export default function Register() {
           <div className="mt-8 pt-8 border-t border-white border-opacity-20 w-full">
             <p className="text-sm opacity-90 mb-4">
               <strong>✓ You can register:</strong><br/>
-              {userRole === "SUPERADMIN" 
-                ? "Admin, Manager, Staff"
-                : "Manager, Staff"}
+              {userRole === "SUPERADMIN" ? "Admin, Manager, Staff" : "Manager, Staff"}
             </p>
             <div className="p-3 bg-white bg-opacity-20 rounded-lg text-sm">
               Logged in as: <strong>{userRole}</strong>
@@ -97,7 +90,7 @@ export default function Register() {
         </div>
 
         {/* Right form panel */}
-        <div className="p-8 md:p-10">
+        <div className="p-8 md:p-10 relative z-10">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-800">
               {userRole === "SUPERADMIN" ? "Register New User" : "Register Team Member"}
@@ -117,7 +110,7 @@ export default function Register() {
               <input
                 type="text"
                 placeholder="e.g., Sarah Johnson"
-                className="mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="relative z-10 mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -130,7 +123,7 @@ export default function Register() {
               <input
                 type="email"
                 placeholder="sarah@company.com"
-                className="mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="relative z-10 mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -143,7 +136,7 @@ export default function Register() {
               <input
                 type="password"
                 placeholder="Set initial password (secure)"
-                className="mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="relative z-10 mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -157,30 +150,25 @@ export default function Register() {
               <select
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                className="relative z-10 mt-1 block w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
               >
                 {userRole === "SUPERADMIN" && (
                   <>
-                    <option value="admin">⚙️ Admin - Full system management</option>
-                    <option value="manager">📦 Manager - Inventory & stock management</option>
-                    <option value="staff">👷 Staff - Shelf restocking & sales</option>
+                    <option value="admin">⚙️ Admin</option>
+                    <option value="manager">📦 Manager</option>
+                    <option value="staff">👷 Staff</option>
                   </>
                 )}
                 {userRole === "ADMIN" && (
                   <>
-                    <option value="manager">📦 Manager - Inventory & stock management</option>
-                    <option value="staff">👷 Staff - Shelf restocking & sales</option>
+                    <option value="manager">📦 Manager</option>
+                    <option value="staff">👷 Staff</option>
                   </>
                 )}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {userRole === "SUPERADMIN"
-                  ? "Select which role this person will have"
-                  : "Select Manager or Staff role"}
-              </p>
             </div>
 
-            {/* Error Message */}
+            {/* Error & Success Messages */}
             {localError && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
                 <span className="text-lg">⚠️</span>
@@ -190,8 +178,6 @@ export default function Register() {
                 </div>
               </div>
             )}
-
-            {/* Success Message */}
             {successMessage && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-start gap-2">
                 <span className="text-lg">✅</span>
@@ -211,44 +197,6 @@ export default function Register() {
               {loading ? "🔄 Registering..." : `✓ Register ${newRole.toUpperCase()}`}
             </button>
           </form>
-
-          {/* Action Buttons */}
-          <div className="pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  setName("");
-                  setEmail("");
-                  setPassword("");
-                  setNewRole("admin");
-                  setLocalError("");
-                  setSuccessMessage("");
-                }}
-                className="py-2 rounded-lg text-gray-700 font-medium border border-gray-300 hover:bg-gray-50 transition"
-              >
-                🔄 Clear Form
-              </button>
-              <button
-                onClick={() => window.location.href = "/admin/dashboard"}
-                className="py-2 rounded-lg text-white font-medium bg-purple-600 hover:bg-purple-700 transition"
-              >
-                📊 Go to Dashboard
-              </button>
-            </div>
-            <button
-              onClick={() => window.location.href = "/login"}
-              className="w-full mt-3 py-2 rounded-lg text-gray-700 font-medium border border-gray-300 hover:bg-gray-50 transition"
-            >
-              🚪 Logout
-            </button>
-          </div>
-
-          {/* Footer Info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-600 space-y-2">
-            <p><strong>💡 Tip:</strong> Users will login at the login page with their email & password</p>
-            <p><strong>🔒 Security:</strong> Passwords are hashed and never stored in plain text</p>
-            <p><strong>🔄 Keep Registering:</strong> Return to this page anytime to add more users</p>
-          </div>
         </div>
       </div>
     </div>

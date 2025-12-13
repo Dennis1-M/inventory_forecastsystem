@@ -175,7 +175,7 @@ export const adjustStock = async (req, res) => {
 export const getInventoryMovements = async (req, res) => {
   try {
     const movements = await prisma.inventoryMovement.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { timestamp: "desc" },
       include: {
         product: { select: { name: true, sku: true } },
         supplier: { select: { name: true } },

@@ -15,29 +15,34 @@ export default function UserManagement() {
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    // Only SuperAdmin can view all users
-    if (!token || userRole !== "SUPERADMIN") {
-      navigate("/login");
-      return;
-    }
-
-    loadUsers();
-  }, []);
-
-  async function loadUsers() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await axiosClient.get("/api/users");
-      setUsers(res.data.data || []);
-    } catch (err) {
-      const message = err.response?.data?.message || "Failed to load users";
-      setError(message);
-      console.error("Error loading users:", err);
-    } finally {
-      setLoading(false);
-    }
+  if (!token) {
+    navigate("/login");
+    return;
   }
+
+  if (userRole !== "SUPERADMIN") {
+    setError("You are not authorized to view this page.");
+    setLoading(false);
+    return;
+  }
+
+  loadUsers();
+}, [token, userRole]);
+
+ async function loadUsers() {
+  setLoading(true);
+  setError("");
+  try {
+    const res = await axiosClient.get("/api/users");
+    setUsers(Array.isArray(res.data) ? res.data : res.data.data || []);
+  } catch (err) {
+    const message = err.response?.data?.message || "Failed to load users";
+    setError(message);
+    console.error("Error loading users:", err);
+  } finally {
+    setLoading(false);
+  }
+}
 
   // Filter users
   const filteredUsers = users.filter((u) => {

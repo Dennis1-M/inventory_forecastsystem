@@ -10,7 +10,21 @@ export const useAuth = create((set) => ({
   error: null,
 
   // -----------------------
-  // LOGIN FUNCTION
+  // INIT FROM STORAGE (FIXED)
+  // -----------------------
+  initFromStorage: () => {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    if (token && user) {
+      set({ token, user, role: user.role });
+    } else {
+      set({ user: null, token: null, role: null });
+    }
+  },
+
+  // -----------------------
+  // LOGIN
   // -----------------------
   login: async (email, password) => {
     try {
@@ -21,49 +35,46 @@ export const useAuth = create((set) => ({
         password,
       });
 
-      const user = res.data.user;
-      const token = res.data.token;
+      const { user, token } = res.data;
 
-      // Always use backend role – safer
+      // Store in state
       set({ user, token, role: user.role });
 
       // Persist
       localStorage.setItem("token", token);
-      localStorage.setItem("role", user.role);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Redirect per role
-      if (user.role === "SUPERADMIN") window.location.href = "/admin/dashboard";
-      else if (user.role === "ADMIN") window.location.href = "/admin/dashboard";
-      else if (user.role === "MANAGER") window.location.href = "/manager/dashboard";
-      else if (user.role === "STAFF") window.location.href = "/staff/dashboard";
+      // HARD redirect per role (important)
+      switch (user.role) {
+        case "SUPERADMIN":
+        case "ADMIN":
+          window.location.href = "/admin/dashboard";
+          break;
+        case "MANAGER":
+          window.location.href = "/manager/dashboard";
+          break;
+        case "STAFF":
+          window.location.href = "/staff/dashboard";
+          break;
+        default:
+          window.location.href = "/";
+      }
 
     } catch (err) {
-      console.error(err);
       const message = err.response?.data?.message || "Login failed";
       set({ error: message });
     }
   },
 
   // -----------------------
-  // LOGOUT FUNCTION
+  // LOGOUT (EXPLICIT)
   // -----------------------
   logout: () => {
-    set({ user: null, token: null, role: null });
     localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    window.location.href = "/login";
-  },
-
-  // -----------------------
-  // INIT FROM STORAGE
-  // -----------------------
-  initFromStorage: () => {
-    // Always start fresh - require login every time app reloads
-    // This ensures users must provide credentials and system has current auth state
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
     localStorage.removeItem("user");
     set({ user: null, token: null, role: null });
+
+    // Force reset of app
+    window.location.href = "/login";
   },
 }));

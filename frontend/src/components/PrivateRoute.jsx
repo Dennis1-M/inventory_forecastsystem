@@ -1,21 +1,24 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../store/auth";
 
-export default function PrivateRoute({ children, requiredRole = null }) {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+ // Props:
+ // - requiredRole: string or array of roles allowed to access this route 
+export default function PrivateRoute({ requiredRole = null }) {
+  const { user, token } = useAuth();
 
-  // If no token, redirect to login
-  if (!token) {
+  if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // If role is required, check if user has one of the allowed roles
   if (requiredRole) {
-    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!allowedRoles.includes(user?.role)) {
+    const allowed = Array.isArray(requiredRole)
+      ? requiredRole
+      : [requiredRole];
+
+    if (!allowed.includes(user.role)) {
       return <Navigate to="/" replace />;
     }
   }
 
-  return children;
+  return <Outlet />;
 }

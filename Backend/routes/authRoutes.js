@@ -1,23 +1,33 @@
-import express from "express";
-import { checkSuperAdminExists, getMe, loginUser, registerSuperAdmin, registerUser } from "../controllers/authController.js";
-import { protect } from "../middleware/auth.js";
+import { Router } from "express";
+import {
+    checkSuperAdminExists,
+    deleteUser,
+    getMe,
+    loginUser,
+    registerSuperAdmin,
+    registerUser,
+} from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
 import { allowRoles } from "../middleware/roleMiddleware.js";
 
-const router = express.Router();
+const router = Router();
 
-// Login (public)
+// Public login
 router.post("/login", loginUser);
 
-// Check if SuperAdmin exists (public - for first-time setup)
+// First-time setup: check SuperAdmin
 router.get("/check-superadmin", checkSuperAdminExists);
 
-// Register SuperAdmin (first user - no auth required)
+// Register initial SuperAdmin
 router.post("/register-superadmin", registerSuperAdmin);
 
-// Register users: SuperAdmin→Admin, Admin→Manager/Staff (auth required)
+// Register other users (requires login + role permission)
 router.post("/register", protect, allowRoles("SUPERADMIN", "ADMIN"), registerUser);
 
-// Get current logged-in user
+// Get logged-in user
 router.get("/me", protect, getMe);
+
+// Optional: delete user (requires login + role)
+router.delete("/:id", protect, allowRoles("SUPERADMIN", "ADMIN"), deleteUser);
 
 export default router;

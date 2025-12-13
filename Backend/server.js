@@ -1,7 +1,6 @@
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 
 // Routes
@@ -13,7 +12,7 @@ dotenv.config();
 const app = express();
 
 // ------------------------------
-// CORS 
+// CORS Configuration
 // ------------------------------
 const allowedOrigins = [
   'http://localhost:5174',
@@ -31,7 +30,6 @@ app.use(cors({
 // Handle preflight requests
 app.options("*", cors());
 
-
 // ------------------------------
 // Body Parsers
 // ------------------------------
@@ -39,7 +37,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ------------------------------
-// Root
+// Root Endpoint
 // ------------------------------
 app.get('/', (req, res) => {
   res.send('API is running...');
@@ -48,9 +46,9 @@ app.get('/', (req, res) => {
 // ------------------------------
 // Routes
 // ------------------------------
-app.use('/api/auth', authRoutes); // login, register, me
-app.use('/api/users', userRoutes); // admin-only user CRUD
-app.use('/api', apiRoutes); // other endpoints: products, sales, inventory
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api', apiRoutes);
 
 // ------------------------------
 // Error Handling Middleware
