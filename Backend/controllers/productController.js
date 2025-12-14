@@ -1,6 +1,5 @@
 import colors from "colors";
-import { prisma } from "../index.js";
-
+import prisma  from "../config/prisma.js"
 /**
  * Create product
  * - Validates required fields (name, sku, unitPrice, categoryId)

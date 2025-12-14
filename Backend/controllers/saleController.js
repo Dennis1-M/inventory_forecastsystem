@@ -1,6 +1,6 @@
 // sales.controller.js
 import colors from "colors";
-import { prisma } from "../index.js";
+import prisma  from "../config/prisma.js"
 
 // ---------- Error Handler ----------
 const handlePrismaError = (res, error, operation) => {

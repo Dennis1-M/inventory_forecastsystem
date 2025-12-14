@@ -1,6 +1,6 @@
 // controllers/userController.js
 import bcrypt from "bcryptjs";
-import { prisma } from "../index.js";
+import prisma from "../config/prisma.js";
 
 // ---------------- Get All Users ----------------
 export const getUsers = async (req, res) => {

@@ -1,6 +1,6 @@
 // backend/controllers/inventoryController.js
 import colors from "colors";
-import { prisma } from "../index.js";
+import  prisma  from "../config/prisma.js"
 
 /**
  * HELPERS
