@@ -1,4 +1,48 @@
-export { default } from "./auth/AuthRegisterSuperAdmin";
+import axiosClient from "@/lib/axiosClient";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../store/auth";
+
+export default function RegisterSuperAdmin() {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [superAdminExists, setSuperAdminExists] = useState(false);
+
+  const token = localStorage.getItem("token");
+  const userRole = localStorage.getItem("role");
+
+  useEffect(() => {
+    if (token && userRole) {
+      if (userRole === "SUPERADMIN" || userRole === "ADMIN") navigate("/admin/dashboard");
+      else if (userRole === "MANAGER") navigate("/manager/dashboard");
+      else if (userRole === "STAFF") navigate("/staff/dashboard");
+    }
+
+    checkSuperAdminExists();
+  }, []);
+
+  async function checkSuperAdminExists() {
+    try {
+      const res = await axiosClient.get("/api/auth/check-superadmin");
+      if (res.data.exists) {
+        setSuperAdminExists(true);
+        navigate("/login");
+      }
+    } catch (err) {
+      console.error("Error checking SuperAdmin:", err);
+    }
+  }
+
+  const registerSuperAdmin = useAuth((s) => s.registerSuperAdmin);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -26,38 +70,26 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
     setLoading(true);
 
     try {
-      const res = await axiosClient.post("/api/auth/register-superadmin", {
-        name: name.trim(),
-        email: email.trim(),
-        password,
-      });
-
-      // Store auth data
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", "SUPERADMIN");
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-
+      const res = await registerSuperAdmin(name.trim(), email.trim(), password);
       setSuccess("✓ SuperAdmin registered successfully! Redirecting...");
 
       setTimeout(() => {
         navigate("/admin/dashboard");
-      }, 1500);
+      }, 1200);
     } catch (err) {
-      const message = err.response?.data?.message || "Registration failed. Please try again.";
+      const message = err.response?.data?.message || err?.message || "Registration failed. Please try again.";
       setError(message);
     } finally {
       setLoading(false);
     }
   };
-
   if (superAdminExists) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center py-6 px-4">
       <div className="w-full max-w-md">
-        {/* Logo/Header */}
         <div className="text-center mb-10">
           <div className="inline-block p-3 bg-purple-500/20 rounded-full mb-4">
             <UserPlus className="w-8 h-8 text-purple-400" />
@@ -66,28 +98,23 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
           <p className="text-purple-300">Create SuperAdmin Account</p>
         </div>
 
-        {/* Registration Card */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-2xl font-bold text-white mb-2">Welcome to Inventory Forecast System</h2>
           <p className="text-gray-300 text-sm mb-6">Set up your SuperAdmin account to get started</p>
 
-          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
               <p className="text-red-200 text-sm">{error}</p>
             </div>
           )}
 
-          {/* Success Message */}
           {success && (
             <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
               <p className="text-green-200 text-sm">{success}</p>
             </div>
           )}
 
-          {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-5">
-            {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">Full Name</label>
               <input
@@ -100,7 +127,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
               />
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">Email Address</label>
               <input
@@ -113,7 +139,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">Password</label>
               <div className="relative">
@@ -135,7 +160,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">Confirm Password</label>
               <div className="relative">
@@ -157,7 +181,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -168,7 +191,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
             </button>
           </form>
 
-          {/* Info Box */}
           <div className="mt-6 pt-6 border-t border-white/10">
             <p className="text-xs text-gray-400 mb-3">As SuperAdmin, you can:</p>
             <ul className="space-y-2 text-xs text-gray-300">
@@ -187,7 +209,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
             </ul>
           </div>
 
-          {/* Login Link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
               Already have an account?{" "}
@@ -201,7 +222,6 @@ export { default } from "./auth/AuthRegisterSuperAdmin";
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-gray-400 text-xs">
           <p>© 2025 Inventory Forecast System. All rights reserved.</p>
         </div>

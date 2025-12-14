@@ -1,6 +1,9 @@
 import { AlertTriangle } from "lucide-react";
 import { Component } from "react";
 
+// Tag: util/error-boundary
+// Purpose: Catches rendering errors in the component tree and shows a
+// user-friendly fallback UI while logging details to the console.
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);

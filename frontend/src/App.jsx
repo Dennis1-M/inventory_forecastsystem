@@ -8,8 +8,8 @@ import ManagerLayout from "./layouts/ManagerLayout";
 import StaffLayout from "./layouts/StaffLayout";
 
 /* Pages */
-import AuthLogin from "./pages/AuthLogin";
-import AuthRegisterSuperAdmin from "./pages/AuthRegisterSuperAdmin";
+import AuthLogin from "./pages/auth/AuthLogin";
+import AuthRegisterSuperAdmin from "./pages/auth/AuthRegisterSuperAdmin";
 import LandingPage from "./pages/LandingPage";
 import RegisterUser from "./pages/RegisterUser";
 

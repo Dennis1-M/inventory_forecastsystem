@@ -27,7 +27,6 @@ export default function Register() {
     setLocalError("");
     setSuccessMessage("");
     setLoading(true);
-
     try {
       const userData = {
         name: name.trim(),
@@ -36,9 +35,9 @@ export default function Register() {
         role: newRole.toUpperCase(),
       };
 
-      await axiosClient.post("/api/auth/register", userData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Use auth store helper which will use axiosClient and handle errors
+      const registerUser = (await import("../store/auth")).useAuth.getState().registerUser;
+      await registerUser(userData);
 
       setSuccessMessage(`✅ ${newRole.toUpperCase()} registered successfully!`);
       setName(""); setEmail(""); setPassword(""); setNewRole("admin");

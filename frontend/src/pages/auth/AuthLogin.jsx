@@ -1,4 +1,42 @@
-export { default } from "./auth/AuthLogin";
+import axiosClient from "@/lib/axiosClient";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../store/auth";
+
+export default function AuthLogin() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("admin@example.com");
+  const [password, setPassword] = useState("admin123");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [superAdminExists, setSuperAdminExists] = useState(true);
+
+  const login = useAuth((s) => s.login);
+  const token = localStorage.getItem("token");
+  const userRole = localStorage.getItem("role");
+
+  useEffect(() => {
+    // Check if user already logged in
+    if (token && userRole) {
+      if (userRole === "SUPERADMIN" || userRole === "ADMIN") navigate("/admin/dashboard");
+      else if (userRole === "MANAGER") navigate("/manager/dashboard");
+      else if (userRole === "STAFF") navigate("/staff/dashboard");
+    }
+
+    // Check if SuperAdmin exists
+    checkSuperAdminExists();
+  }, []);
+
+  async function checkSuperAdminExists() {
+    try {
+      const res = await axiosClient.get("/api/auth/check-superadmin");
+      setSuperAdminExists(res.data.exists);
+    } catch (err) {
+      console.error("Error checking SuperAdmin:", err);
+    }
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -6,10 +44,14 @@ export { default } from "./auth/AuthLogin";
     setLoading(true);
 
     try {
-      await login(email, password);
-      // Auth store handles navigation after successful login
+      const user = await login(email, password);
+      // Navigate on success based on role
+      if (user?.role === "SUPERADMIN" || user?.role === "ADMIN") navigate("/admin/dashboard");
+      else if (user?.role === "MANAGER") navigate("/manager/dashboard");
+      else if (user?.role === "STAFF") navigate("/staff/dashboard");
+      else navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      setError(err.response?.data?.message || err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
