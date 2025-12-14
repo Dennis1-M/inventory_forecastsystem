@@ -1,33 +1,81 @@
-import { Router } from "express";
-import {
-    checkSuperAdminExists,
-    deleteUser,
-    getMe,
-    loginUser,
-    registerSuperAdmin,
-    registerUser,
-} from "../controllers/authController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { allowRoles } from "../middleware/roleMiddleware.js";
+// server.js
+// Main Express server setup
+// Configures middleware, routes, and error handling
 
-const router = Router();
+import cors from "cors";
+import dotenv from "dotenv";
+import express from "express";
+import { errorHandler } from "../middleware/errorMiddleware.js";
 
-// Public login
-router.post("/login", loginUser);
 
-// First-time setup: check SuperAdmin
-router.get("/check-superadmin", checkSuperAdminExists);
+// ------------------------------
+// Route Imports
+// ------------------------------
+import apiRoutes from "./apiRoutes.js"; // products, sales, inventory, etc.
+import authRoutes from "./routes/authRoutes.js"; // login, register
+import userRoutes from "./routes/userRoutes.js"; // users
 
-// Register initial SuperAdmin
-router.post("/register-superadmin", registerSuperAdmin);
+// ------------------------------
+// Env Config
+// ------------------------------
+dotenv.config();
+const app = express();
 
-// Register other users (requires login + role permission)
-router.post("/register", protect, allowRoles("SUPERADMIN", "ADMIN"), registerUser);
+// ------------------------------
+// CORS Configuration
+// ------------------------------
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+];
 
-// Get logged-in user
-router.get("/me", protect, getMe);
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: "GET,POST,PUT,DELETE,PATCH",
+    allowedHeaders: "Content-Type,Authorization",
+    credentials: true,
+  })
+);
 
-// Optional: delete user (requires login + role)
-router.delete("/:id", protect, allowRoles("SUPERADMIN", "ADMIN"), deleteUser);
+// Preflight
+app.options("*", cors());
 
-export default router;
+// ------------------------------
+// Body Parsers
+// ------------------------------
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ------------------------------
+// Root Endpoint
+// ------------------------------
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
+// ------------------------------
+// API Routes
+// ------------------------------
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+// Dashboard route temporarily removed until implemented
+// app.use("/api/dashboard", dashboardRoutes);
+app.use("/api", apiRoutes);
+
+// ------------------------------
+// Error Handling Middleware
+// ------------------------------
+app.use(notFound);
+app.use(errorHandler);
+
+// ------------------------------
+// Start Server
+// ------------------------------
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+export default app;

@@ -137,3 +137,62 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ message: "Failed to delete user.", error: err.message });
   }
 };
+// ---------------- Update User ----------------
+export const updateUser = async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id))
+    return res.status(400).json({ message: "Invalid user ID." });
+
+  const { name, email, password, role } = req.body;
+  const data = {};
+
+  if (role && req.user.role !== "SUPERADMIN") {
+    return res
+      .status(403)
+      .json({ message: "Only SUPERADMIN can change roles." });
+  }
+
+  if (name) data.name = name;
+  if (email) data.email = email;
+  if (role) data.role = role;
+  if (password) data.password = await bcrypt.hash(password, 10);
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    res
+      .status(200)
+      .json({ message: "User updated successfully.", user: updatedUser });
+  } catch (err) {
+    if (err.code === "P2002")
+      return res.status(409).json({ message: "Email already exists." });
+
+    res
+      .status(500)
+      .json({ message: "Failed to update user.", error: err.message });
+  }
+};
+
+
+// ---------------- Get User by ID ----------------
+export const getUserById = async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID." });
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    res.status(200).json(user);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch user." });
+  }
+};  

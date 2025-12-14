@@ -9,3 +9,4 @@ export const admin = (req, res, next) => {
         message: "Access denied. Admins only."
     });
 };
+  

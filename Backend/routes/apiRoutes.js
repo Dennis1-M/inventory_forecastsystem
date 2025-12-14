@@ -1,7 +1,7 @@
 // routes/apiRoutes.js
 import { Router } from "express";
 import { admin } from "../middleware/admin.js";
-import { protect } from "../middleware/auth.js";
+import { protect } from "../middleware/authMiddleware.js";
 
   //category imports
 import {

@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
 import colors from "colors";
+import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -27,3 +27,17 @@ export const protect = (req, res, next) => {
         });
     }
 };
+
+  // Flexible role-based access control
+export const allowRoles = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user?.role)
+      return res.status(401).json({ message: "Unauthorized." });    
+    if (!allowedRoles.includes(req.user.role))
+      return res.status(403).json({ message: "Access forbidden." });
+
+    next(); 
+  };
+}
+
+
