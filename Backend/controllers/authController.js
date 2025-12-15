@@ -416,3 +416,26 @@ export const getUserById = async (req, res) => {
     });
   }
 };
+
+// controllers/authController.js - Add this function
+// ---------------- Logout User ----------------
+export const logoutUser = async (req, res) => {
+  try {
+    // You could implement token blacklisting here if needed
+    // For now, we just acknowledge the logout request
+    
+    console.log(`👋 User ${req.user?.email} logged out`);
+    
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully"
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Logout failed",
+      error: err.message
+    });
+  }
+};

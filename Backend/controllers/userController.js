@@ -77,32 +77,113 @@ export const updateUser = async (req, res) => {
   }
 };
 
-// ---------------- Soft Delete User ----------------
+// controllers/userController.js - Update deleteUser function
+// ---------------- Delete User (Account Deletion) ----------------
 export const deleteUser = async (req, res) => {
   const id = Number(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID." });
-
-  if (req.user.id === id)
-    return res.status(403).json({ message: "Cannot delete your own account." });
+  const currentUser = req.user;
+  
+  if (isNaN(id)) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Invalid user ID." 
+    });
+  }
 
   try {
-    await prisma.user.update({
-      where: { id },
-      data: { isActive: false },
+    // Get the user to delete
+    const userToDelete = await prisma.user.findUnique({
+      where: { id }
     });
+
+    if (!userToDelete) {
+      return res.status(404).json({ 
+        success: false,
+        message: "User not found." 
+      });
+    }
+
+    // Check permissions
+    const canDelete = 
+      // User can delete themselves
+      currentUser.id === id ||
+      // SuperAdmin can delete anyone except other SuperAdmins
+      (currentUser.role === "SUPERADMIN" && userToDelete.role !== "SUPERADMIN") ||
+      // Admin can delete Managers and Staff
+      (currentUser.role === "ADMIN" && ["MANAGER", "STAFF"].includes(userToDelete.role));
+
+    if (!canDelete) {
+      return res.status(403).json({ 
+        success: false,
+        message: "You don't have permission to delete this user." 
+      });
+    }
+
+    // Prevent deleting the last SuperAdmin
+    if (userToDelete.role === "SUPERADMIN") {
+      const superAdminCount = await prisma.user.count({
+        where: { role: "SUPERADMIN" }
+      });
+      
+      if (superAdminCount <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot delete the last SuperAdmin in the system."
+        });
+      }
+    }
+
+    // Soft delete (deactivate) or hard delete
+    const deleteMethod = process.env.DELETE_METHOD || "soft"; // "hard" or "soft"
+    
+    if (deleteMethod === "soft") {
+      // Soft delete - mark as inactive
+      await prisma.user.update({
+        where: { id },
+        data: { 
+          isActive: false,
+          email: `deleted_${Date.now()}_${userToDelete.email}`, // Change email to prevent reuse
+          name: "[Deleted User]"
+        },
+      });
+      console.log(`✅ User ${id} soft deleted (deactivated)`);
+    } else {
+      // Hard delete - remove from database
+      await prisma.user.delete({
+        where: { id }
+      });
+      console.log(`✅ User ${id} hard deleted from database`);
+    }
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        action: "DELETE_USER",
-        performedById: req.user.id,
-        targetUserId: id,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          action: "DELETE_USER",
+          performedById: currentUser.id,
+          targetUserId: id,
+          details: JSON.stringify({
+            method: deleteMethod,
+            userEmail: userToDelete.email,
+            userRole: userToDelete.role
+          })
+        },
+      });
+    } catch (auditError) {
+      console.warn("Audit log failed:", auditError);
+    }
 
-    res.status(204).send();
+    res.status(200).json({ 
+      success: true,
+      message: `User account ${deleteMethod === 'soft' ? 'deactivated' : 'deleted'} successfully.` 
+    });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete user.", error: err.message });
+    console.error("Error deleting user:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to delete user.", 
+      error: err.message 
+    });
   }
 };
 

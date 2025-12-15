@@ -1,25 +1,31 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
-const NotAuthorized: React.FC = () => {
+export default function NotAuthorized() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-pink-50 px-4">
-      <h1 className="text-6xl font-bold text-pink-700 mb-4">403</h1>
-      <h2 className="text-3xl font-semibold text-pink-600 mb-6">
-        Not Authorized
-      </h2>
-      <p className="text-lg text-pink-800 mb-8 text-center">
-        You do not have permission to access this page.
-      </p>
-      <button
-        className="px-6 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 transition"
-        onClick={() => navigate("/")}
-      >
-        Go Home
-      </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-red-600 mb-4">403</h1>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-600 mb-6">
+          You don't have permission to access this page.
+        </p>
+        <div className="space-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default NotAuthorized;
+}

@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react"; // Add useEffect
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+
+// Icons for better UI
+import { FaEye, FaEyeSlash, FaLock, FaSignInAlt, FaUser } from "react-icons/fa";
 
 const Login: React.FC = () => {
   const { loginUser } = useAuth();
@@ -10,34 +13,54 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // Add debug state
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-  const addDebug = (msg: string) => {
-    console.log(msg);
-    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
+  // Check if user is already logged in
   useEffect(() => {
-    addDebug("🔧 Login component mounted");
-    addDebug(`🌐 Backend URL: http://localhost:5001/api/auth/login`);
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        console.log("🔄 User already logged in, redirecting...", user.role);
+        redirectToDashboard(user.role);
+      } catch (error) {
+        console.error("Error parsing stored user:", error);
+      }
+    }
   }, []);
+
+  const redirectToDashboard = (role: string) => {
+    switch (role.toUpperCase()) {
+      case "SUPERADMIN":
+        navigate("/superadmin-dashboard");
+        break;
+      case "ADMIN":
+        navigate("/admin-dashboard");
+        break;
+      case "MANAGER":
+        navigate("/manager-dashboard");
+        break;
+      case "STAFF":
+        navigate("/staff-dashboard");
+        break;
+      default:
+        console.warn("Unknown role, redirecting to home");
+        navigate("/");
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addDebug("🔄 Submit button clicked");
     setLoading(true);
     setError("");
-    setDebugInfo([]); // Clear previous debug
 
     try {
-      addDebug(`📤 Sending login request for: ${email}`);
+      console.log("🔄 Attempting login...");
       
-      const API_URL = "http://localhost:5001/api/auth/login";
-      addDebug(`🌐 API Endpoint: ${API_URL}`);
-      
-      const startTime = Date.now();
-      const response = await fetch(API_URL, {
+      const response = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,272 +68,270 @@ const Login: React.FC = () => {
         body: JSON.stringify({ email, password }),
       });
 
-      const endTime = Date.now();
-      addDebug(`⏱️ Response received in ${endTime - startTime}ms`);
-      addDebug(`📊 Status: ${response.status} ${response.statusText}`);
+      console.log("📊 Response status:", response.status);
 
-      // Log response headers for CORS check
-      const corsHeader = response.headers.get('access-control-allow-origin');
-      addDebug(`🌍 CORS Header: ${corsHeader || 'Not set'}`);
-
-      // Check if response is empty
-      const responseText = await response.text();
-      addDebug(`📄 Response length: ${responseText.length} characters`);
-      
-      if (!responseText) {
-        throw new Error("Empty response from server");
-      }
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        addDebug("✅ JSON parsed successfully");
-      } catch (parseError) {
-        addDebug(`❌ JSON parse failed. Response: ${responseText.substring(0, 200)}`);
-        throw new Error(`Invalid JSON: ${responseText.substring(0, 100)}...`);
-      }
-
-      addDebug(`📦 Response data keys: ${Object.keys(data).join(', ')}`);
+      const data = await response.json();
+      console.log("📦 Response data:", data);
 
       if (!response.ok) {
-        addDebug(`❌ Server error: ${data.message || 'Unknown error'}`);
-        throw new Error(data.message || `Server error: ${response.status}`);
+        throw new Error(data.message || 'Login failed');
       }
 
-      if (!data.token) {
-        addDebug("❌ No token in response");
-        throw new Error('No authentication token received');
+      if (!data.success) {
+        throw new Error(data.message || 'Login unsuccessful');
       }
 
-      if (!data.user) {
-        addDebug("❌ No user data in response");
-        throw new Error('No user data received');
-      }
+      console.log("✅ Login successful!");
+      console.log("👤 User role:", data.user.role);
 
-      addDebug(`✅ Login successful! Token: ${data.token.substring(0, 20)}..., Role: ${data.user.role}`);
-
-      // Step 1: Save to localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      addDebug("💾 Saved to localStorage");
-
-      // Step 2: Update context
+      // Store in context
       loginUser(data.user, data.token);
-      addDebug("🔄 Updated AuthContext");
-
-      // Step 3: Verify storage
-      setTimeout(() => {
-        const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-        addDebug(`🔍 Verification - Token in localStorage: ${storedToken ? '✅' : '❌'}`);
-        addDebug(`🔍 Verification - User in localStorage: ${storedUser ? '✅' : '❌'}`);
-        
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            addDebug(`👤 Stored user: ${parsed.email} (${parsed.role})`);
-          } catch (e) {
-            addDebug("❌ Failed to parse stored user");
-          }
-        }
-      }, 50);
-
-      // Step 4: Redirect
-      addDebug(`📍 Preparing redirect to ${data.user.role.toLowerCase()}-dashboard`);
       
-      setTimeout(() => {
-        const targetPath = `/${data.user.role.toLowerCase()}-dashboard`;
-        addDebug(`🚀 Redirecting to: ${targetPath}`);
-        window.location.href = targetPath; // Use window.location for full reload
-      }, 100);
+      // Remember me functionality
+      if (rememberMe) {
+        console.log("💾 Remember me enabled - saving to localStorage");
+        localStorage.setItem("rememberedEmail", email);
+      } else {
+        localStorage.removeItem("rememberedEmail");
+      }
+
+      // Redirect based on role
+      redirectToDashboard(data.user.role);
 
     } catch (err: any) {
-      addDebug(`❌ ERROR: ${err.message}`);
-      console.error("Login error details:", err);
-      setError(err.message || "Login failed. Please check backend connection.");
+      console.error("❌ Login error:", err);
+      setError(err.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
-      addDebug("🏁 Submit function completed");
     }
   };
 
-  const testConnection = async () => {
-    addDebug("🧪 Testing backend connection...");
-    
-    try {
-      const response = await fetch('http://localhost:5001/');
-      const text = await response.text();
-      addDebug(`🔌 Backend root: ${response.status} - "${text}"`);
-      
-      if (response.ok) {
-        addDebug("✅ Backend is running!");
-      }
-    } catch (error: any) {
-      addDebug(`❌ Backend not reachable: ${error.message}`);
-      setError("Backend server not running on port 5001");
+  // Load remembered email
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem("rememberedEmail");
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
     }
-  };
-
-  const testAPIPublic = async () => {
-    addDebug("🧪 Testing public API...");
-    
-    try {
-      const response = await fetch('http://localhost:5001/api/test/public');
-      const data = await response.json();
-      addDebug(`📡 Public API: ${response.status} - ${JSON.stringify(data)}`);
-    } catch (error: any) {
-      addDebug(`❌ Public API failed: ${error.message}`);
-    }
-  };
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-pink-50 p-4">
-      <div className="flex flex-col md:flex-row gap-8 w-full max-w-6xl">
-        {/* Login Form */}
-        <form
-          onSubmit={submit}
-          className="bg-white p-8 rounded-xl shadow-lg w-full md:w-1/2 space-y-6"
-        >
-          <h2 className="text-2xl font-bold text-center text-pink-600">Sign In</h2>
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-linear-to-r from-purple-600 to-pink-600 mb-4">
+            <FaSignInAlt className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to your account</p>
+        </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
-              <p className="font-medium">{error}</p>
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <form onSubmit={submit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <div className="flex">
+                  <div className="shrink-0">
+                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaUser className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                  required
+                  disabled={loading}
+                />
+              </div>
             </div>
-          )}
 
-          <div className="flex flex-col">
-            <label className="mb-1 font-semibold text-gray-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              required
-              disabled={loading}
-              placeholder="admin@example.com"
-            />
-          </div>
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaLock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+            </div>
 
-          <div className="flex flex-col">
-            <label className="mb-1 font-semibold text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              required
-              disabled={loading}
-              placeholder="••••••••"
-            />
-          </div>
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  disabled={loading}
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
+              </div>
+              <div className="text-sm">
+                <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
+                  Forgot password?
+                </a>
+              </div>
+            </div>
 
-          {/* The button in question */}
-          <div className="relative">
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-linear-to-r from-pink-500 to-pink-700 text-white py-3 rounded-full font-bold hover:scale-105 transform transition disabled:opacity-50 disabled:cursor-not-allowed relative"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              <span className={`${loading ? 'opacity-0' : 'opacity-100'}`}>
-                Login
-              </span>
-              {loading && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span className="ml-2">Logging in...</span>
-                </div>
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <FaSignInAlt className="mr-2" />
+                  Sign In
+                </>
               )}
             </button>
-            
-            {/* Button debug info */}
-            <div className="mt-2 text-xs text-gray-500">
-              <p>Button state: {loading ? "⏳ Loading..." : "✅ Ready"}</p>
-              <p>Disabled: {loading ? "Yes" : "No"}</p>
-              <p>Clickable: {loading ? "No" : "Yes"}</p>
-            </div>
-          </div>
 
-          {/* Test buttons */}
-          <div className="space-y-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={testConnection}
-              className="w-full bg-blue-100 text-blue-700 py-2 rounded hover:bg-blue-200"
-            >
-              🔌 Test Backend Connection
-            </button>
-            
-            <button
-              type="button"
-              onClick={testAPIPublic}
-              className="w-full bg-green-100 text-green-700 py-2 rounded hover:bg-green-200"
-            >
-              📡 Test Public API
-            </button>
-            
-            <button
-              type="button"
-              onClick={() => {
-                // Test credentials
-                setEmail("admin@example.com");
-                setPassword("password123");
-                addDebug("🧪 Auto-filled test credentials");
-              }}
-              className="w-full bg-purple-100 text-purple-700 py-2 rounded hover:bg-purple-200"
-            >
-              🧪 Auto-fill Test Credentials
-            </button>
-          </div>
-        </form>
-
-        {/* Debug Panel */}
-        <div className="bg-gray-900 text-gray-100 p-6 rounded-xl shadow-lg w-full md:w-1/2 overflow-hidden">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold">🔧 Debug Console</h3>
-            <button
-              onClick={() => setDebugInfo([])}
-              className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded"
-            >
-              Clear
-            </button>
-          </div>
-          
-          <div className="h-96 overflow-y-auto font-mono text-sm space-y-1">
-            {debugInfo.length === 0 ? (
-              <p className="text-gray-400 italic">Click login to see debug info...</p>
-            ) : (
-              debugInfo.map((msg, index) => (
-                <div 
-                  key={index} 
-                  className={`p-2 rounded ${msg.includes('❌') ? 'bg-red-900/30' : msg.includes('✅') ? 'bg-green-900/30' : 'bg-gray-800/30'}`}
+            {/* Demo Credentials (Remove in production) */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-sm text-gray-500 text-center mb-3">Demo Credentials:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("superadmin@example.com");
+                    setPassword("password123");
+                    setRememberMe(true);
+                  }}
+                  className="px-3 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition"
                 >
-                  {msg}
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <h4 className="font-bold mb-2">📝 Quick Checks:</h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-gray-800 p-2 rounded">
-                <p>Backend: <span className="text-yellow-300">localhost:5001</span></p>
-              </div>
-              <div className="bg-gray-800 p-2 rounded">
-                <p>Frontend: <span className="text-yellow-300">localhost:5173</span></p>
-              </div>
-              <div className="bg-gray-800 p-2 rounded">
-                <p>localStorage: <span className="text-yellow-300">
-                  {localStorage.getItem('token') ? 'Has token' : 'No token'}
-                </span></p>
-              </div>
-              <div className="bg-gray-800 p-2 rounded">
-                <p>Current Path: <span className="text-yellow-300">{window.location.pathname}</span></p>
+                  Super Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("admin@example.com");
+                    setPassword("password123");
+                    setRememberMe(true);
+                  }}
+                  className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("manager@example.com");
+                    setPassword("password123");
+                    setRememberMe(true);
+                  }}
+                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                >
+                  Manager
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("staff@example.com");
+                    setPassword("password123");
+                    setRememberMe(true);
+                  }}
+                  className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
+                >
+                  Staff
+                </button>
               </div>
             </div>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center">
+              By signing in, you agree to our{" "}
+              <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
+                Privacy Policy
+              </a>
+              .
+            </p>
           </div>
         </div>
+
+        {/* Debug Info (Remove in production) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs font-mono">
+            <div className="flex justify-between items-center">
+              <span>🔧 Debug Info</span>
+              <button
+                onClick={() => {
+                  console.log("LocalStorage:", {
+                    token: localStorage.getItem("token"),
+                    user: localStorage.getItem("user"),
+                    rememberedEmail: localStorage.getItem("rememberedEmail")
+                  });
+                }}
+                className="px-2 py-1 bg-gray-700 rounded"
+              >
+                Log State
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

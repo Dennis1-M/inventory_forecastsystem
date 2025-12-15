@@ -1,46 +1,92 @@
+import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import DebugPanel from "./components/DebugPanel";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { AuthProvider, useAuth } from "./context/AuthContext"; // Import useAuth
+import { AuthProvider } from "./context/AuthContext";
+
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import RegisterSuperuser from "./pages/RegisterSuperuser";
+import Settings from "./pages/Settings";
 
+// Import all dashboards
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import ManagerDashboard from "./pages/dashboard/ManagerDashboard";
-import NotAuthorized from "./pages/NotAuthorized";
-
 import StaffDashboard from "./pages/dashboard/StaffDashboard";
 import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard";
 
-// In your App.tsx, add this route temporarily:
-import TestLogin from "./pages/TestLogin"; // Add this import
+import NotAuthorized from "./pages/NotAuthorized";
 
-// In your Routes, add:
+// Create a simple inline loading component
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+  </div>
+);
 
-
-function AppContent() {
-  const { isInitialized } = useAuth();
+// Create a simple inline ProtectedRoute component
+const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
+  const token = localStorage.getItem("token");
+  const userStr = localStorage.getItem("user");
   
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Initializing authentication...</p>
-        </div>
-      </div>
-    );
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
   
+  if (allowedRoles && allowedRoles.length > 0) {
+    try {
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (!user?.role || !allowedRoles.includes(user.role)) {
+        return <Navigate to="/not-authorized" replace />;
+      }
+    } catch {
+      return <Navigate to="/login" replace />;
+    }
+  }
+  
+  return <>{children}</>;
+};
+
+// Add this import at the top if needed
+import { Navigate } from "react-router-dom";
+
+function AppContent() {
+  const [superAdminExists, setSuperAdminExists] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkSuperAdmin();
+  }, []);
+
+  const checkSuperAdmin = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/check-superadmin');
+      const data = await response.json();
+      setSuperAdminExists(data.exists);
+    } catch (error) {
+      console.error('Error checking SuperAdmin:', error);
+      setSuperAdminExists(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Routes>
-      <Route path="/not-authorized" element={<NotAuthorized />} />
-      <Route path="/test-login" element={<TestLogin />} /> {/* Temporary test route */}
+      {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/register-superuser" element={<RegisterSuperuser />} />
+      <Route path="/not-authorized" element={<NotAuthorized />} />
+      
+      {/* SuperAdmin registration - only show if no SuperAdmin exists */}
+      {!superAdminExists && (
+        <Route path="/register-superuser" element={<RegisterSuperuser />} />
+      )}
+      
+      {/* Login - always available */}
       <Route path="/login" element={<Login />} />
-
+      
       {/* Protected dashboards */}
       <Route
         path="/superadmin-dashboard"
@@ -50,6 +96,8 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
+      
       <Route
         path="/admin-dashboard"
         element={
@@ -58,6 +106,8 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
+
       <Route
         path="/manager-dashboard"
         element={
@@ -66,6 +116,7 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/staff-dashboard"
         element={
@@ -74,7 +125,24 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+      
+      {/* Protected settings page for all authenticated users */}
+      <Route
+  path="/settings"
+  element={
+    <ProtectedRoute>
+      <Settings />
+    </ProtectedRoute>
+  }
+    />
+      {/* Catch-all redirect */}
+      <Route path="*" element={
+        superAdminExists ? <Login /> : <RegisterSuperuser />
+      } />
     </Routes>
+      
+
+
   );
 }
 
@@ -83,8 +151,6 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppContent />
-        {/* Add DebugPanel in development */}
-        {process.env.NODE_ENV === 'development' && <DebugPanel />}
       </BrowserRouter>
     </AuthProvider>
   );
