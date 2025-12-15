@@ -87,4 +87,67 @@ router.get("/alerts/unread", protect, getUnreadAlerts);
 router.put("/alerts/:id/read", protect, markAlertAsRead);
 router.put("/alerts/:id/resolve", protect, resolveAlert);
 
+// Test routes - Add these before other routes
+router.get("/test/public", (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Public API is working",
+    timestamp: new Date().toISOString()
+  });
+});
+
+
+  // Protected route test
+router.get("/test/protected", protect, (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Protected route accessed successfully",
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+router.get("/test/admin", protect, (req, res) => {
+  if (!["ADMIN", "SUPERADMIN"].includes(req.user.role)) {
+    return res.status(403).json({ 
+      success: false, 
+      message: "Admin access required" 
+    });
+  }
+  
+  res.json({ 
+    success: true, 
+    message: "Admin route accessed",
+    user: req.user,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Add these test routes to your apiRoutes.js file
+router.get("/test/public", (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Public API is working",
+    timestamp: new Date().toISOString()
+  });
+});
+
+router.get("/test/protected", protect, (req, res) => {
+  res.json({ 
+    success: true, 
+    message: "Protected route accessed successfully",
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+
 export default router;
