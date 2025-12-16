@@ -1,36 +1,44 @@
-// src/components/ProtectedRoute.tsx
+// components/ProtectedRoute.tsx
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: string[];
+  allowedRoles: ('SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF')[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, token } = useAuth();
-  
-  console.log("🛡️ ProtectedRoute check:", { 
-    userRole: user?.role,
-    allowedRoles,
-    hasToken: !!token
-  });
-  
-  // If no token, redirect to login
-  if (!token) {
-    console.log("❌ No token, redirecting to login");
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
-  // If roles are specified but user doesn't have an allowed role
-  if (allowedRoles && allowedRoles.length > 0) {
-    if (!user?.role || !allowedRoles.includes(user.role)) {
-      console.log(`🚫 Access denied. User role: ${user?.role}, Allowed roles: ${allowedRoles}`);
-      return <Navigate to="/not-authorized" replace />;
+
+  if (!allowedRoles.includes(user.role)) {
+    // Redirect to appropriate dashboard based on role
+    switch (user.role) {
+      case 'SUPERADMIN':
+        return <Navigate to="/superadmin" replace />;
+      case 'ADMIN':
+        return <Navigate to="/admin" replace />;
+      case 'MANAGER':
+        return <Navigate to="/manager" replace />;
+      case 'STAFF':
+        return <Navigate to="/staff" replace />;
+      default:
+        return <Navigate to="/login" replace />;
     }
   }
-  
-  console.log("✅ Access granted");
+
   return <>{children}</>;
 };
 

@@ -1,5 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+// config/prisma.js
+import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient();
+// Prevent multiple instances of Prisma Client in development
+const globalForPrisma = global
 
-export default prisma;
+export const prisma = globalForPrisma.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export default prisma

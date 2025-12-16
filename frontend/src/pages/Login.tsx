@@ -1,337 +1,299 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash, FaLock, FaSpinner, FaUser } from "react-icons/fa";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-// Icons for better UI
-import { FaEye, FaEyeSlash, FaLock, FaSignInAlt, FaUser } from "react-icons/fa";
-
-const Login: React.FC = () => {
-  const { loginUser } = useAuth();
-  const navigate = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const Login = () => {
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Check if user is already logged in
+  // Check if redirected from registration
+  const fromRegistration = location.state?.fromRegistration;
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
-    
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        console.log("🔄 User already logged in, redirecting...", user.role);
-        redirectToDashboard(user.role);
-      } catch (error) {
-        console.error("Error parsing stored user:", error);
-      }
+    if (fromRegistration) {
+      setError("Super Admin created successfully! Please login with your credentials.");
+    }
+  }, [fromRegistration]);
+
+  // Try to load saved credentials
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
     }
   }, []);
 
-  const redirectToDashboard = (role: string) => {
-    switch (role.toUpperCase()) {
-      case "SUPERADMIN":
-        navigate("/superadmin-dashboard");
-        break;
-      case "ADMIN":
-        navigate("/admin-dashboard");
-        break;
-      case "MANAGER":
-        navigate("/manager-dashboard");
-        break;
-      case "STAFF":
-        navigate("/staff-dashboard");
-        break;
-      default:
-        console.warn("Unknown role, redirecting to home");
-        navigate("/");
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError("Email is required");
+      return false;
     }
+    if (!formData.password) {
+      setError("Password is required");
+      return false;
+    }
+    return true;
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      console.log("🔄 Attempting login...");
-      
-      const response = await fetch('http://localhost:5001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      console.log("📊 Response status:", response.status);
-
-      const data = await response.json();
-      console.log("📦 Response data:", data);
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      if (!data.success) {
-        throw new Error(data.message || 'Login unsuccessful');
-      }
-
-      console.log("✅ Login successful!");
-      console.log("👤 User role:", data.user.role);
-
-      // Store in context
-      loginUser(data.user, data.token);
-      
-      // Remember me functionality
+      // Save email if remember me is checked
       if (rememberMe) {
-        console.log("💾 Remember me enabled - saving to localStorage");
-        localStorage.setItem("rememberedEmail", email);
+        localStorage.setItem("rememberedEmail", formData.email);
       } else {
         localStorage.removeItem("rememberedEmail");
       }
 
-      // Redirect based on role
-      redirectToDashboard(data.user.role);
-
+      await login(formData.email, formData.password);
+      // Navigation is handled by AuthContext after successful login
     } catch (err: any) {
-      console.error("❌ Login error:", err);
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Load remembered email
-  useEffect(() => {
-    const rememberedEmail = localStorage.getItem("rememberedEmail");
-    if (rememberedEmail) {
-      setEmail(rememberedEmail);
-      setRememberMe(true);
+  const handleDemoLogin = async (role: string) => {
+    setLoading(true);
+    setError("");
+
+    let email = "";
+    let password = "password123"; // Default demo password
+
+    switch (role) {
+      case "SUPERADMIN":
+        email = "superadmin@example.com";
+        break;
+      case "ADMIN":
+        email = "admin@example.com";
+        break;
+      case "MANAGER":
+        email = "manager@example.com";
+        break;
+      case "STAFF":
+        email = "staff@example.com";
+        break;
     }
-  }, []);
+
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError("Demo login failed. Make sure demo accounts are set up in the database.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-purple-50 p-4">
-      <div className="w-full max-w-md">
-        {/* Logo/Header */}
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-linear-to-r from-purple-600 to-pink-600 mb-4">
-            <FaSignInAlt className="h-8 w-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
+              <FaLock className="text-white text-2xl" />
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <p className="text-gray-600">Sign in to your inventory management system</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={submit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                <div className="flex">
-                  <div className="shrink-0">
-                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
+          {error && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              error.includes("successfully") 
+                ? "bg-green-50 border border-green-200 text-green-700" 
+                : "bg-red-50 border border-red-200 text-red-700"
+            }`}>
+              {error}
+            </div>
+          )}
 
-            {/* Email Input */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaUser className="h-5 w-5 text-gray-400" />
+                  <FaUser className="text-gray-400" />
                 </div>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                  placeholder="Enter your email"
                   required
-                  disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Password Input */}
+            {/* Password Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
+                  <FaLock className="text-gray-400" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                  placeholder="Enter your password"
                   required
-                  disabled={loading}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <FaEyeSlash className="text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <FaEye className="text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
+            {/* Remember & Forgot */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
-                  id="remember-me"
-                  name="remember-me"
                   type="checkbox"
+                  id="remember"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                  disabled={loading}
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
                   Remember me
                 </label>
               </div>
-              <div className="text-sm">
-                <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
-                  Forgot password?
-                </a>
-              </div>
+              <button
+                type="button"
+                className="text-sm text-purple-600 hover:text-purple-700"
+                onClick={() => alert("Please contact Super Admin to reset your password")}
+              >
+                Forgot password?
+              </button>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <FaSpinner className="animate-spin mr-2" />
                   Signing in...
                 </>
               ) : (
-                <>
-                  <FaSignInAlt className="mr-2" />
-                  Sign In
-                </>
+                "Sign In"
               )}
             </button>
-
-            {/* Demo Credentials (Remove in production) */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-sm text-gray-500 text-center mb-3">Demo Credentials:</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("superadmin@example.com");
-                    setPassword("password123");
-                    setRememberMe(true);
-                  }}
-                  className="px-3 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition"
-                >
-                  Super Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("admin@example.com");
-                    setPassword("password123");
-                    setRememberMe(true);
-                  }}
-                  className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("manager@example.com");
-                    setPassword("password123");
-                    setRememberMe(true);
-                  }}
-                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
-                >
-                  Manager
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("staff@example.com");
-                    setPassword("password123");
-                    setRememberMe(true);
-                  }}
-                  className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition"
-                >
-                  Staff
-                </button>
-              </div>
-            </div>
           </form>
 
-          {/* Footer */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              By signing in, you agree to our{" "}
-              <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
-                Terms of Service
-              </a>{" "}
-              and{" "}
-              <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
-                Privacy Policy
-              </a>
-              .
+          {/* Demo Login Section */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Demo Accounts</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleDemoLogin("SUPERADMIN")}
+                disabled={loading}
+                className="p-2 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 disabled:opacity-50"
+              >
+                Super Admin
+              </button>
+              <button
+                onClick={() => handleDemoLogin("ADMIN")}
+                disabled={loading}
+                className="p-2 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50"
+              >
+                Admin
+              </button>
+              <button
+                onClick={() => handleDemoLogin("MANAGER")}
+                disabled={loading}
+                className="p-2 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+              >
+                Manager
+              </button>
+              <button
+                onClick={() => handleDemoLogin("STAFF")}
+                disabled={loading}
+                className="p-2 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
+              >
+                Staff
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              All demo accounts use password: <code className="bg-gray-100 px-1 rounded">password123</code>
             </p>
+          </div>
+
+          {/* Role Information */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Role Information:</h4>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li className="flex items-center">
+                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                <span className="font-medium">Super Admin:</span> Full system control
+              </li>
+              <li className="flex items-center">
+                <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                <span className="font-medium">Admin:</span> Manage users & inventory
+              </li>
+              <li className="flex items-center">
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                <span className="font-medium">Manager:</span> Team oversight & reports
+              </li>
+              <li className="flex items-center">
+                <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span className="font-medium">Staff:</span> Basic inventory access
+              </li>
+            </ul>
           </div>
         </div>
 
-        {/* Debug Info (Remove in production) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs font-mono">
-            <div className="flex justify-between items-center">
-              <span>🔧 Debug Info</span>
-              <button
-                onClick={() => {
-                  console.log("LocalStorage:", {
-                    token: localStorage.getItem("token"),
-                    user: localStorage.getItem("user"),
-                    rememberedEmail: localStorage.getItem("rememberedEmail")
-                  });
-                }}
-                className="px-2 py-1 bg-gray-700 rounded"
-              >
-                Log State
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Don't have an account?{" "}
+            <Link to="/" className="text-purple-600 hover:text-purple-700 font-medium">
+              Contact Super Admin
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

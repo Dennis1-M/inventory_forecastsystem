@@ -1,367 +1,351 @@
+// src/pages/dashboard/AdminDashboard.tsx - FIX THIS FILE
 import { useEffect, useState } from 'react';
 import {
-  FaBell,
+  FaArrowUp,
   FaBox,
   FaChartBar,
-  FaCog,
+  FaDatabase,
+  FaExclamationTriangle,
   FaShoppingCart,
+  FaSpinner,
   FaUserPlus,
   FaUsers
 } from 'react-icons/fa';
-import AccountDropdown from '../../components/AccountDropdown';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-export default function AdminDashboard() {
-  const { user, token } = useAuth();
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF';
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalProducts: number;
+  lowStockProducts: number;
+  totalSales: number;
+  monthlySales: number;
+  pendingAlerts: number;
+  inventoryValue: number;
+}
+
+export default function AdminDashboardPage() {
+  const { user: currentUser, token, logoutUser } = useAuth();
+  const navigate = useNavigate();
   
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'STAFF' as 'MANAGER' | 'STAFF'
-  });
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({
+  // State Management
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
-    activeProducts: 0,
-    todaySales: 0,
-    pendingTasks: 0
+    activeUsers: 0,
+    totalProducts: 0,
+    lowStockProducts: 0,
+    totalSales: 0,
+    monthlySales: 0,
+    pendingAlerts: 0,
+    inventoryValue: 0
   });
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
 
+  // Fetch dashboard data
   useEffect(() => {
-    console.log('🛡️ Admin Dashboard loaded for:', user?.email);
-    fetchDashboardStats();
-  }, [user]);
-
-  const fetchDashboardStats = async () => {
-    try {
-      // Fetch admin dashboard stats
-      const response = await fetch('http://localhost:5000/api/admin/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
+    if (token) {
+      fetchDashboardData();
     }
-  };
+  }, [token]);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
+  const fetchDashboardData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
+      setLoading(true);
+      
+      // Fetch users
+      const usersResponse = await fetch('http://localhost:5001/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+      if (usersResponse.status === 401) {
+        logoutUser();
+        navigate('/login');
+        return;
       }
 
-      alert(`${formData.role} registered successfully!`);
-      setShowRegisterForm(false);
-      setFormData({ name: '', email: '', password: '', role: 'STAFF' });
-      fetchDashboardStats(); // Refresh stats
+      if (!usersResponse.ok) throw new Error('Failed to fetch users');
       
+      const usersData = await usersResponse.json();
+      const usersList = usersData.data || usersData;
+      setUsers(usersList);
+      setRecentUsers(usersList.slice(0, 5)); // Show 5 most recent users
+
+      // Calculate basic stats
+      const activeUsersCount = usersList.filter((u: User) => u.isActive).length;
+      
+      // Fetch system stats if available
+      try {
+        const statsResponse = await fetch('http://localhost:5001/api/admin/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats({
+            totalUsers: usersList.length,
+            activeUsers: activeUsersCount,
+            totalProducts: statsData.data?.products?.total || 0,
+            lowStockProducts: statsData.data?.products?.lowStock || 0,
+            totalSales: statsData.data?.sales?.total || 0,
+            monthlySales: 0, // You can calculate this
+            pendingAlerts: statsData.data?.alerts?.active || 0,
+            inventoryValue: 0 // You can calculate this
+          });
+        }
+      } catch (statsError) {
+        // If stats endpoint fails, use basic stats
+        setStats({
+          totalUsers: usersList.length,
+          activeUsers: activeUsersCount,
+          totalProducts: 0,
+          lowStockProducts: 0,
+          totalSales: 0,
+          monthlySales: 0,
+          pendingAlerts: 0,
+          inventoryValue: 0
+        });
+      }
+
     } catch (error: any) {
-      alert(`Registration failed: ${error.message}`);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'SUPERADMIN': return 'bg-purple-100 text-purple-800';
+      case 'ADMIN': return 'bg-red-100 text-red-800';
+      case 'MANAGER': return 'bg-blue-100 text-blue-800';
+      case 'STAFF': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <FaSpinner className="animate-spin text-blue-600 text-2xl" />
+        <span className="ml-2 text-gray-600">Loading dashboard...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              <span className="ml-4 px-3 py-1 bg-red-100 text-red-800 text-sm font-semibold rounded-full">
-                ADMIN
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button className="relative p-2 text-gray-600 hover:text-gray-900">
-                <FaBell size={20} />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <button
-                onClick={() => setShowRegisterForm(true)}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                <FaUserPlus />
-                <span>Register User</span>
-              </button>
-              
-              <AccountDropdown
-                userName={user?.name || ''}
-                userEmail={user?.email || ''}
-                userRole={user?.role || ''}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Welcome back, {currentUser?.name}!
+        </h1>
+        <p className="text-gray-600">
+          Here's what's happening with your store today.
+        </p>
+      </div>
 
-      {/* Registration Modal */}
-      {showRegisterForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Register New User</h2>
-              <button
-                onClick={() => setShowRegisterForm(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Users Card */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Users</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalUsers}</h3>
+              <p className="text-xs text-green-600 mt-1">
+                {stats.activeUsers} active • {((stats.activeUsers / stats.totalUsers) * 100).toFixed(1)}%
+              </p>
             </div>
-            <form onSubmit={handleRegister}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    disabled={loading}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value as 'MANAGER' | 'STAFF'})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loading}
-                  >
-                    <option value="STAFF">Staff</option>
-                    <option value="MANAGER">Manager</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    As Admin, you can register Managers and Staff
-                  </p>
-                </div>
-                
-                <div className="flex space-x-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {loading ? 'Registering...' : 'Register User'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterForm(false)}
-                    disabled={loading}
-                    className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-            Welcome, <span className="text-red-600">{user?.name}</span>
-          </h1>
-          <p className="text-gray-600">Manage system operations and user permissions</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalUsers}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <FaUsers className="text-blue-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Products</p>
-                <p className="text-3xl font-bold text-green-600">{stats.activeProducts}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <FaBox className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Today's Sales</p>
-                <p className="text-3xl font-bold text-purple-600">KES {stats.todaySales.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                <FaShoppingCart className="text-purple-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pendingTasks}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                <FaCog className="text-yellow-600" size={24} />
-              </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <FaUsers className="text-blue-600 text-xl" />
             </div>
           </div>
         </div>
 
-        {/* Admin Privileges & Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Admin Privileges</h2>
-              <div className="space-y-4">
-                <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                  <FaUsers className="text-blue-500 mr-3" />
-                  <div>
-                    <p className="font-medium">User Management</p>
-                    <p className="text-sm text-gray-600">Can register Managers and Staff accounts</p>
-                  </div>
-                </div>
-                <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                  <FaChartBar className="text-green-500 mr-3" />
-                  <div>
-                    <p className="font-medium">Analytics Access</p>
-                    <p className="text-sm text-gray-600">Full access to all reports and analytics</p>
-                  </div>
-                </div>
-                <div className="flex items-center p-3 bg-purple-50 rounded-lg">
-                  <FaCog className="text-purple-500 mr-3" />
-                  <div>
-                    <p className="font-medium">System Configuration</p>
-                    <p className="text-sm text-gray-600">Manage system settings and configurations</p>
-                  </div>
-                </div>
-              </div>
+        {/* Products Card */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Products</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalProducts}</h3>
+              <p className="text-xs text-red-600 mt-1">
+                {stats.lowStockProducts} low stock
+              </p>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-            <div className="space-y-3">
-              <button
-                onClick={() => setShowRegisterForm(true)}
-                className="w-full text-left px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center"
-              >
-                <FaUserPlus className="mr-3" />
-                Register New User
-              </button>
-              <button className="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 flex items-center">
-                <FaChartBar className="mr-3" />
-                View Reports
-              </button>
-              <button className="w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 flex items-center">
-                <FaCog className="mr-3" />
-                System Settings
-              </button>
+            <div className="p-3 bg-green-100 rounded-full">
+              <FaBox className="text-green-600 text-xl" />
             </div>
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="mt-8 bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+        {/* Sales Card */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Sales</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalSales}</h3>
+              <p className="text-xs text-green-600 mt-1">
+                <FaArrowUp className="inline mr-1" />
+                {stats.monthlySales} this month
+              </p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-full">
+              <FaShoppingCart className="text-purple-600 text-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Alerts Card */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending Alerts</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingAlerts}</h3>
+              <p className="text-xs text-yellow-600 mt-1">
+                Requires attention
+              </p>
+            </div>
+            <div className="p-3 bg-yellow-100 rounded-full">
+              <FaExclamationTriangle className="text-yellow-600 text-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions & Recent Users */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quick Actions */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <FaUserPlus className="text-blue-600 text-xl mb-2" />
+              <span className="text-sm font-medium">Add User</span>
+            </button>
+            <button
+              onClick={() => navigate('/admin/products')}
+              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <FaBox className="text-green-600 text-xl mb-2" />
+              <span className="text-sm font-medium">Add Product</span>
+            </button>
+            <button
+              onClick={() => navigate('/admin/inventory')}
+              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <FaDatabase className="text-purple-600 text-xl mb-2" />
+              <span className="text-sm font-medium">Inventory</span>
+            </button>
+            <button
+              onClick={() => navigate('/admin/analytics')}
+              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <FaChartBar className="text-yellow-600 text-xl mb-2" />
+              <span className="text-sm font-medium">Analytics</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Users */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Recent Users</h3>
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="text-sm text-blue-600 hover:text-blue-700"
+            >
+              View All
+            </button>
+          </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <FaUserPlus className="text-blue-600" size={14} />
+            {recentUsers.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-sm font-medium text-gray-600">
+                      {user.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{user.name}</p>
+                    <p className="text-xs text-gray-500">{user.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">New user registered</p>
-                  <p className="text-sm text-gray-500">Just now</p>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs font-medium rounded ${getRoleColor(user.role)}`}>
+                    {user.role}
+                  </span>
+                  <span className={`text-xs ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
               </div>
-              <span className="text-sm text-gray-500">Staff</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* System Status */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">API Status</span>
+              <span className="text-sm font-semibold text-green-600">Online</span>
             </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                  <FaShoppingCart className="text-green-600" size={14} />
-                </div>
-                <div>
-                  <p className="font-medium">Sales report generated</p>
-                  <p className="text-sm text-gray-500">2 hours ago</p>
-                </div>
-              </div>
-              <span className="text-sm text-gray-500">Report</span>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+            </div>
+          </div>
+          
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Database</span>
+              <span className="text-sm font-semibold text-green-600">Connected</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+            </div>
+          </div>
+          
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Server Load</span>
+              <span className="text-sm font-semibold text-blue-600">Normal</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '30%' }}></div>
             </div>
           </div>
         </div>

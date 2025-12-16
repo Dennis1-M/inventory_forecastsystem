@@ -1,3 +1,4 @@
+// routes/apiRoutes.js - CLEANED VERSION
 import { Router } from "express";
 import { admin } from "../middleware/admin.js";
 import { protect } from "../middleware/authMiddleware.js";

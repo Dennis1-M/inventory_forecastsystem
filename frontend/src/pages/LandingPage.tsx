@@ -83,12 +83,7 @@ const LandingPage = () => {
                 >
                   Login to System
                 </Link>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center px-8 py-3 text-base font-medium rounded-lg text-purple-700 bg-purple-100 hover:bg-purple-200"
-                >
-                  Demo Tour
-                </Link>
+                
               </>
             ) : (
               <>

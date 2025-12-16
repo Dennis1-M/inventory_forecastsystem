@@ -5,21 +5,21 @@ import {
     runForecastForProduct,
     saveForecast,
 } from "../controllers/forecastController.js";
-import { verifyToken } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Manually trigger forecast
-router.post("/run", verifyToken, runForecastForProduct);
+router.post("/run", protect, runForecastForProduct);
 
 // Save forecast manually or from external script
-router.post("/save", verifyToken, saveForecast);
+router.post("/save", protect, saveForecast);
 
 // Full history
-router.get("/history/:productId", verifyToken, getForecastHistory);
+router.get("/history/:productId", protect, getForecastHistory);
 
 // Get latest forecast or auto-run if missing
-router.get("/:productId", verifyToken, async (req, res) => {
+router.get("/:productId", protect, async (req, res) => {
     try {
         const productId = Number(req.params.productId);
         const horizon = Number(req.query.horizon) || 14;
