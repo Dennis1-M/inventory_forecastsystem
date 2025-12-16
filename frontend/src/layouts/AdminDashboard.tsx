@@ -1,5 +1,5 @@
-// src/layouts/AdminDashboard.tsx - FIXED WITH TYPE-ONLY IMPORTS
-import type { ReactNode } from 'react'; // Type-only import
+// src/layouts/AdminDashboard.tsx - UPDATED
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import {
   FaBars,
@@ -21,10 +21,9 @@ import { useAuth } from '../context/AuthContext';
 
 interface AdminDashboardProps {
   children: ReactNode;
-  title?: string;
 }
 
-export default function AdminDashboard({ children, title = 'Admin Dashboard' }: AdminDashboardProps) {
+export default function AdminDashboardLayout({ children }: AdminDashboardProps) {
   const { user, logoutUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,7 +37,7 @@ export default function AdminDashboard({ children, title = 'Admin Dashboard' }: 
   };
 
   const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: <FaTachometerAlt />, exact: true },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: <FaTachometerAlt /> },
     { path: '/admin/users', label: 'User Management', icon: <FaUsers /> },
     { path: '/admin/products', label: 'Products', icon: <FaBox /> },
     { path: '/admin/inventory', label: 'Inventory', icon: <FaDatabase /> },
@@ -48,11 +47,16 @@ export default function AdminDashboard({ children, title = 'Admin Dashboard' }: 
     { path: '/admin/settings', label: 'Settings', icon: <FaCog /> },
   ];
 
-  const isActive = (path: string, exact = false) => {
-    if (exact) {
-      return location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/admin/dashboard') {
+      return location.pathname === '/admin/dashboard';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const currentTitle = () => {
+    const item = menuItems.find(item => isActive(item.path));
+    return item ? item.label : 'Admin Dashboard';
   };
 
   return (
@@ -77,8 +81,8 @@ export default function AdminDashboard({ children, title = 'Admin Dashboard' }: 
                 <FaUserCircle className="text-blue-600 text-xl" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900">{user?.name}</h2>
-                <p className="text-xs text-gray-500">{user?.role}</p>
+                <h2 className="font-bold text-gray-900">{user?.name || 'Admin'}</h2>
+                <p className="text-xs text-gray-500">{user?.role || 'ADMIN'}</p>
               </div>
             </div>
           </div>
@@ -91,7 +95,7 @@ export default function AdminDashboard({ children, title = 'Admin Dashboard' }: 
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                  isActive(item.path, item.exact)
+                  isActive(item.path)
                     ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -128,7 +132,7 @@ export default function AdminDashboard({ children, title = 'Admin Dashboard' }: 
                 >
                   {sidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
                 </button>
-                <h1 className="ml-4 text-lg font-semibold text-gray-900">{title}</h1>
+                <h1 className="ml-4 text-lg font-semibold text-gray-900">{currentTitle()}</h1>
               </div>
 
               <div className="flex items-center space-x-4">

@@ -1,242 +1,92 @@
-// src/pages/dashboard/AdminDashboard.tsx - FIX THIS FILE
-import { useEffect, useState } from 'react';
-import {
-  FaArrowUp,
-  FaBox,
-  FaChartBar,
-  FaDatabase,
-  FaExclamationTriangle,
-  FaShoppingCart,
-  FaSpinner,
-  FaUserPlus,
-  FaUsers
-} from 'react-icons/fa';
+// src/pages/dashboard/AdminDashboard.tsx - SIMPLIFIED VERSION
+import type { JSX } from 'react';
+import { FaBox, FaChartBar, FaExclamationTriangle, FaShoppingCart, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 
-interface User {
+interface DashboardStat {
+  title: string;
+  value: number | string;
+  icon: JSX.Element;
+  color: string;
+  subtitle?: string;
+}
+
+interface RecentUser {
   id: number;
   name: string;
   email: string;
-  role: 'SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF';
+  role: string;
   isActive: boolean;
-  createdAt: string;
-}
-
-interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalProducts: number;
-  lowStockProducts: number;
-  totalSales: number;
-  monthlySales: number;
-  pendingAlerts: number;
-  inventoryValue: number;
 }
 
 export default function AdminDashboardPage() {
-  const { user: currentUser, token, logoutUser } = useAuth();
   const navigate = useNavigate();
-  
-  // State Management
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalProducts: 0,
-    lowStockProducts: 0,
-    totalSales: 0,
-    monthlySales: 0,
-    pendingAlerts: 0,
-    inventoryValue: 0
-  });
-  const [recentUsers, setRecentUsers] = useState<User[]>([]);
 
-  // Fetch dashboard data
-  useEffect(() => {
-    if (token) {
-      fetchDashboardData();
-    }
-  }, [token]);
+  // Mock data - we'll replace with real API calls later
+  const dashboardStats: DashboardStat[] = [
+    { title: 'Total Users', value: 156, icon: <FaUsers />, color: 'blue', subtitle: '24 active today' },
+    { title: 'Total Products', value: 342, icon: <FaBox />, color: 'green', subtitle: '12 low in stock' },
+    { title: 'Total Orders', value: 892, icon: <FaShoppingCart />, color: 'purple', subtitle: '$15,230 revenue' },
+    { title: 'Pending Alerts', value: 8, icon: <FaExclamationTriangle />, color: 'yellow', subtitle: 'Requires attention' },
+  ];
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch users
-      const usersResponse = await fetch('http://localhost:5001/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  const recentUsers: RecentUser[] = [
+    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', isActive: true },
+    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Manager', isActive: true },
+    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Staff', isActive: false },
+    { id: 4, name: 'Sarah Williams', email: 'sarah@example.com', role: 'Staff', isActive: true },
+    { id: 5, name: 'Tom Brown', email: 'tom@example.com', role: 'Staff', isActive: true },
+  ];
 
-      if (usersResponse.status === 401) {
-        logoutUser();
-        navigate('/login');
-        return;
-      }
+  const quickActions = [
+    { label: 'Add User', icon: <FaUserPlus />, color: 'blue', path: '/admin/users/new' },
+    { label: 'Add Product', icon: <FaBox />, color: 'green', path: '/admin/products/new' },
+    { label: 'View Orders', icon: <FaShoppingCart />, color: 'purple', path: '/admin/orders' },
+    { label: 'Analytics', icon: <FaChartBar />, color: 'yellow', path: '/admin/analytics' },
+  ];
 
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      
-      const usersData = await usersResponse.json();
-      const usersList = usersData.data || usersData;
-      setUsers(usersList);
-      setRecentUsers(usersList.slice(0, 5)); // Show 5 most recent users
-
-      // Calculate basic stats
-      const activeUsersCount = usersList.filter((u: User) => u.isActive).length;
-      
-      // Fetch system stats if available
-      try {
-        const statsResponse = await fetch('http://localhost:5001/api/admin/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats({
-            totalUsers: usersList.length,
-            activeUsers: activeUsersCount,
-            totalProducts: statsData.data?.products?.total || 0,
-            lowStockProducts: statsData.data?.products?.lowStock || 0,
-            totalSales: statsData.data?.sales?.total || 0,
-            monthlySales: 0, // You can calculate this
-            pendingAlerts: statsData.data?.alerts?.active || 0,
-            inventoryValue: 0 // You can calculate this
-          });
-        }
-      } catch (statsError) {
-        // If stats endpoint fails, use basic stats
-        setStats({
-          totalUsers: usersList.length,
-          activeUsers: activeUsersCount,
-          totalProducts: 0,
-          lowStockProducts: 0,
-          totalSales: 0,
-          monthlySales: 0,
-          pendingAlerts: 0,
-          inventoryValue: 0
-        });
-      }
-
-    } catch (error: any) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'SUPERADMIN': return 'bg-purple-100 text-purple-800';
-      case 'ADMIN': return 'bg-red-100 text-red-800';
-      case 'MANAGER': return 'bg-blue-100 text-blue-800';
-      case 'STAFF': return 'bg-green-100 text-green-800';
+  const getRoleColor = (role: string): string => {
+    switch (role.toLowerCase()) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'superadmin': return 'bg-purple-100 text-purple-800';
+      case 'manager': return 'bg-blue-100 text-blue-800';
+      case 'staff': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <FaSpinner className="animate-spin text-blue-600 text-2xl" />
-        <span className="ml-2 text-gray-600">Loading dashboard...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Welcome back, {currentUser?.name}!
+          Welcome to Admin Dashboard
         </h1>
         <p className="text-gray-600">
-          Here's what's happening with your store today.
+          Manage your system, users, products, and orders from here.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Users Card */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalUsers}</h3>
-              <p className="text-xs text-green-600 mt-1">
-                {stats.activeUsers} active • {((stats.activeUsers / stats.totalUsers) * 100).toFixed(1)}%
-              </p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <FaUsers className="text-blue-600 text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* Products Card */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Products</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalProducts}</h3>
-              <p className="text-xs text-red-600 mt-1">
-                {stats.lowStockProducts} low stock
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <FaBox className="text-green-600 text-xl" />
+        {dashboardStats.map((stat, index) => (
+          <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
+                {stat.subtitle && (
+                  <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+                )}
+              </div>
+              <div className={`p-3 bg-${stat.color}-100 rounded-full`}>
+                <div className={`text-${stat.color}-600 text-xl`}>
+                  {stat.icon}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Sales Card */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Sales</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalSales}</h3>
-              <p className="text-xs text-green-600 mt-1">
-                <FaArrowUp className="inline mr-1" />
-                {stats.monthlySales} this month
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <FaShoppingCart className="text-purple-600 text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* Alerts Card */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending Alerts</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingAlerts}</h3>
-              <p className="text-xs text-yellow-600 mt-1">
-                Requires attention
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <FaExclamationTriangle className="text-yellow-600 text-xl" />
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Quick Actions & Recent Users */}
@@ -245,34 +95,18 @@ export default function AdminDashboardPage() {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => navigate('/admin/users')}
-              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FaUserPlus className="text-blue-600 text-xl mb-2" />
-              <span className="text-sm font-medium">Add User</span>
-            </button>
-            <button
-              onClick={() => navigate('/admin/products')}
-              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FaBox className="text-green-600 text-xl mb-2" />
-              <span className="text-sm font-medium">Add Product</span>
-            </button>
-            <button
-              onClick={() => navigate('/admin/inventory')}
-              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FaDatabase className="text-purple-600 text-xl mb-2" />
-              <span className="text-sm font-medium">Inventory</span>
-            </button>
-            <button
-              onClick={() => navigate('/admin/analytics')}
-              className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FaChartBar className="text-yellow-600 text-xl mb-2" />
-              <span className="text-sm font-medium">Analytics</span>
-            </button>
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                onClick={() => navigate(action.path)}
+                className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+              >
+                <div className={`text-${action.color}-600 text-xl mb-2`}>
+                  {action.icon}
+                </div>
+                <span className="text-sm font-medium">{action.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -306,7 +140,7 @@ export default function AdminDashboardPage() {
                     {user.role}
                   </span>
                   <span className={`text-xs ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
+                    ● {user.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </div>
@@ -321,11 +155,11 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">API Status</span>
+              <span className="text-sm font-medium text-gray-600">Backend API</span>
               <span className="text-sm font-semibold text-green-600">Online</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+              <div className="bg-green-600 h-2 rounded-full w-full"></div>
             </div>
           </div>
           
@@ -335,17 +169,17 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-semibold text-green-600">Connected</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+              <div className="bg-green-600 h-2 rounded-full w-full"></div>
             </div>
           </div>
           
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Server Load</span>
+              <span className="text-sm font-medium text-gray-600">System Load</span>
               <span className="text-sm font-semibold text-blue-600">Normal</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '30%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
             </div>
           </div>
         </div>
