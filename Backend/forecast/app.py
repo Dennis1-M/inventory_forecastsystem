@@ -15,6 +15,7 @@ app = FastAPI(title="Forecast Service", version="1.0")
 # Request & Response Models
 # --------------------------
 
+   # Request model for /run endpoint
 class RunRequest(BaseModel):
     product_id: int = Field(..., description="Product id to forecast")
     periods: Optional[int] = Field(14, description="Forecast horizon in days")
