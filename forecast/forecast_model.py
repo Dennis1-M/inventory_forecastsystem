@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import holidays
 from sqlalchemy import text
+
+# Import the shared database engine from db.py
 from db import engine
 
 from sklearn.ensemble import RandomForestRegressor
@@ -90,8 +92,20 @@ def _create_advanced_features(df_ts):
 class EnsembleForecaster:
     def __init__(self):
         self.models = {
-            'xgb': XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42, n_jobs=-1, verbosity=0),
-            'rf': RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+            'xgb': XGBRegressor(
+                n_estimators=100, 
+                learning_rate=0.1, 
+                random_state=42, 
+                n_jobs=-1, 
+                verbosity=0,
+                enable_categorical=False
+            ),
+            'rf': RandomForestRegressor(
+                n_estimators=100, 
+                random_state=42, 
+                n_jobs=-1,
+                max_depth=10
+            )
         }
         self.weights = None
         self.scaler = StandardScaler()
@@ -201,6 +215,23 @@ def _preprocess_sales(df):
 
     return df_ts, full_range
 
+# ------------------------------
+# DB ACCESS
+# ------------------------------
+def _fetch_sales(product_id):
+    """Fetch sales data from database using the shared engine"""
+    query = """
+        SELECT "saleDate" AS date, "quantitySold" AS quantity
+        FROM "Sale"
+        WHERE "productId" = %(pid)s
+        ORDER BY "saleDate" ASC
+    """
+    try:
+        df = pd.read_sql(query, engine, params={"pid": int(product_id)})
+        return df
+    except Exception as e:
+        print(f"❌ Database query failed: {e}")
+        return pd.DataFrame()
 
 # ------------------------------
 # EXPLAINABLE AI
@@ -226,6 +257,127 @@ def _generate_explanations(features_map, prediction, last_actual):
     if features_map.get('is_last_week'):
         explanations.append("End-of-month payday may boost sales")
     return explanations
+
+# ------------------------------
+# FEATURE IMPORTANCE
+# ------------------------------
+def _get_feature_importance(model, feature_names):
+    importance = {f: 0.0 for f in feature_names}
+    for _, m in model.models.items():
+        if hasattr(m, 'feature_importances_'):
+            imp = np.array(m.feature_importances_, dtype=float)
+            if imp.sum() > 0:
+                imp = imp / imp.sum()
+            for i, s in enumerate(imp):
+                if i < len(feature_names):
+                    importance[feature_names[i]] += float(s)
+    total = sum(importance.values())
+    if total > 0:
+        return {k: v/total for k, v in sorted(importance.items(), key=lambda x: -x[1])[:10]}
+    return importance
+
+# ------------------------------
+# FUTURE PREDICTIONS
+# ------------------------------
+def _generate_future_predictions(model, df_ts, features, periods):
+    if df_ts.empty:
+        return pd.DataFrame()
+        
+    future_dates = [pd.to_datetime(df_ts['ds'].max()) + timedelta(days=i+1) for i in range(periods)]
+    preds = []
+    last_row = df_ts.iloc[-1].copy() if len(df_ts) > 0 else {}
+    historical = df_ts['y'].tolist() if len(df_ts) > 0 else []
+
+    for i, date in enumerate(future_dates):
+        row = {}
+        date_dt = pd.to_datetime(date)
+        
+        # time features
+        row['dayofweek'] = int(date_dt.weekday())
+        row['dayofyear'] = int(date_dt.timetuple().tm_yday)
+        row['month'] = int(date_dt.month)
+        row['year'] = int(date_dt.year)
+        row['week_of_year'] = int(date_dt.isocalendar()[1])
+        row['day_of_month'] = int(date_dt.day)
+        row['quarter'] = int((row['month'] - 1) // 3 + 1)
+
+        # kenyan features
+        ke_holidays = holidays.Kenya(years=range(row['year'] - 1, row['year'] + 3))
+        row['is_weekend'] = int(row['dayofweek'] >= 5)
+        row['is_holiday'] = int(date_dt in ke_holidays)
+        last_day = calendar.monthrange(row['year'], row['month'])[1]
+        row['is_month_end'] = int(row['day_of_month'] == last_day)
+        row['is_month_start'] = int(row['day_of_month'] == 1)
+        row['is_rainy_season'] = int(row['month'] in [3, 4, 5, 10, 11])
+        row['is_last_week'] = int(row['day_of_month'] >= 25)
+        row['is_school_holiday'] = int(row['month'] in [4, 8, 12])
+        row['is_back_to_school'] = int((row['month'] == 1 and row['day_of_month'] <= 15) or
+                                       (row['month'] == 5 and row['day_of_month'] <= 10) or
+                                       (row['month'] == 9 and row['day_of_month'] <= 10))
+
+        # lag features
+        if i == 0 and 'y' in last_row:
+            row['y_lag1'] = last_row['y']
+        elif i > 0:
+            row['y_lag1'] = preds[-1]['yhat']
+        else:
+            row['y_lag1'] = 0.0
+
+        for lag in [2, 3, 7, 14, 30]:
+            if i >= lag:
+                row[f'y_lag{lag}'] = preds[i - lag]['yhat']
+            else:
+                idx = len(historical) - (lag - i)
+                row[f'y_lag{lag}'] = historical[idx] if idx >= 0 else 0.0
+
+        # rolling using last 7 actual/predicted
+        recent = (historical + [p['yhat'] for p in preds])[-7:]
+        row['rolling_mean_7'] = float(np.mean(recent)) if len(recent) > 0 else 0.0
+        row['rolling_std_7'] = float(np.std(recent)) if len(recent) > 0 else 0.0
+
+        # build model input array in the same order as `features`
+        X_arr = np.array([[row.get(f, 0.0) for f in features]])
+        try:
+            yhat = float(model.predict(X_arr)[0])
+            yhat = max(0.0, yhat)
+        except:
+            yhat = row.get('rolling_mean_7', 0.0)
+
+        row['ds'] = date_dt
+        row['yhat'] = yhat
+        preds.append(row)
+        
+        # Update for next iteration
+        last_row['y'] = yhat
+
+    out_df = pd.DataFrame(preds)
+    out_df['yhat_lower'] = out_df['yhat'] * 0.8
+    out_df['yhat_upper'] = out_df['yhat'] * 1.3
+
+    # ensure requested columns exist and return a clean frame
+    cols = ['ds', 'yhat', 'yhat_lower', 'yhat_upper'] + [f for f in features if f in out_df.columns]
+    return out_df[cols]
+
+# ------------------------------
+# FALLBACK
+# ------------------------------
+def _fallback_forecast(df_ts, features, periods):
+    if df_ts.empty:
+        return None
+        
+    last_7_avg = float(df_ts['y'].tail(7).mean()) if len(df_ts) > 0 else 0.0
+    future_dates = [df_ts['ds'].max() + timedelta(days=i+1) for i in range(periods)]
+    out_df = pd.DataFrame({'ds': future_dates, 'yhat': [last_7_avg] * periods})
+    out_df['yhat_lower'] = out_df['yhat'] * 0.7
+    out_df['yhat_upper'] = out_df['yhat'] * 1.3
+    return {
+        'out_df': out_df, 
+        'mae': float(abs(last_7_avg - df_ts['y'].iloc[-1]) if len(df_ts) > 0 else 0.0),
+        'accuracy': 50.0, 
+        'model': 'MovingAverage(Fallback)', 
+        'explanations': ['Fallback average used'],
+        'feature_importance': {}
+    }
 
 # ------------------------------
 # FORECAST WRAPPER
@@ -255,8 +407,8 @@ def train_and_forecast(product_id: int, periods: int = 14):
     # 2️⃣ PREPROCESS
     df_ts, meta = _preprocess_sales(df_raw)
     print("\n📌 AFTER PREPROCESSING:")
-    print(df_ts.head())
-    print("Row count (processed):", len(df_ts))
+    print(df_ts.head() if df_ts is not None else "No data")
+    print("Row count (processed):", len(df_ts) if df_ts is not None else 0)
 
     if df_ts is None or len(df_ts) < 14:
         print("❌ ERROR: Not enough valid time-series rows (<14).")
@@ -298,12 +450,13 @@ def train_and_forecast(product_id: int, periods: int = 14):
         explanations = _generate_explanations(
             feat_map,
             float(first_row.get('yhat', 0)),
-            float(df_ts['y'].iloc[-1])
+            float(df_ts['y'].iloc[-1]) if len(df_ts) > 0 else 0
         )
 
         feature_importance = _get_feature_importance(model, features)
 
         print("✅ Ensemble forecast completed successfully.")
+        print(f"📈 MAE: {mae:.2f}, Accuracy: {accuracy:.1f}%")
         print("="*80 + "\n")
 
         return {
@@ -316,7 +469,7 @@ def train_and_forecast(product_id: int, periods: int = 14):
         }
 
     except Exception as e:
-        print("\n❌ ENSEMBLE MODEL FAILED:", e)
+        print(f"\n❌ ENSEMBLE MODEL FAILED: {e}")
         print("⚠ Switching to fallback forecast...")
 
         fallback = _fallback_forecast(df_ts, features, periods)
@@ -328,108 +481,3 @@ def train_and_forecast(product_id: int, periods: int = 14):
 
         print("="*80 + "\n")
         return fallback
-
-
-# ------------------------------
-# FUTURE PREDICTIONS
-# ------------------------------
-def _generate_future_predictions(model, df_ts, features, periods):
-    future_dates = [df_ts['ds'].max() + timedelta(days=i+1) for i in range(periods)]
-    preds = []
-    last_row = df_ts.iloc[-1].copy()
-    historical = df_ts['y'].tolist()
-
-    for i, date in enumerate(future_dates):
-        row = {}
-        # time features
-        row['dayofweek'] = date.dayofweek
-        row['dayofyear'] = date.timetuple().tm_yday
-        row['month'] = date.month
-        row['year'] = date.year
-        row['week_of_year'] = date.isocalendar()[1]
-        row['day_of_month'] = date.day
-        row['quarter'] = (date.month-1)//3 + 1
-
-        # kenyan features
-        ke_holidays = holidays.Kenya(years=range(date.year-1, date.year+3))
-        row['is_weekend'] = int(date.dayofweek >= 5)
-        row['is_holiday'] = int(date in ke_holidays)
-        last_day = calendar.monthrange(date.year, date.month)[1]
-        row['is_month_end'] = int(date.day == last_day)
-        row['is_month_start'] = int(date.day == 1)
-        row['is_rainy_season'] = int(date.month in [3,4,5,10,11])
-        row['is_last_week'] = int(date.day >= 25)
-        row['is_school_holiday'] = int(date.month in [4,8,12])
-        row['is_back_to_school'] = int((date.month==1 and date.day<=15) or (date.month==5 and date.day<=10) or (date.month==9 and date.day<=10))
-
-        # lag features
-        row['y_lag1'] = last_row['y'] if i==0 else preds[-1]['yhat']
-        for lag in [2,3,7,14,30]:
-            if i >= lag:
-                row[f'y_lag{lag}'] = preds[i-lag]['yhat']
-            else:
-                idx = len(historical) - (lag - i)
-                row[f'y_lag{lag}'] = historical[idx] if idx >= 0 else 0
-
-        # rolling
-        recent = (historical + [p['yhat'] for p in preds])[-7:]
-        row['rolling_mean_7'] = float(np.mean(recent)) if recent else 0.0
-        row['rolling_std_7'] = float(np.std(recent)) if recent else 0.0
-
-        X_arr = np.array([[row.get(f,0) for f in features]])
-        yhat = float(model.predict(X_arr)[0])
-        yhat = max(0.0, yhat)
-
-        row['ds'] = date
-        row['yhat'] = yhat
-        preds.append(row)
-        last_row['y'] = yhat
-
-    out_df = pd.DataFrame(preds)
-    out_df['yhat_lower'] = out_df['yhat'] * 0.8
-    out_df['yhat_upper'] = out_df['yhat'] * 1.3
-    cols = ['ds','yhat','yhat_lower','yhat_upper'] + [f for f in features if f in out_df.columns]
-    return out_df[cols]
-
-# ------------------------------
-# FEATURE IMPORTANCE
-# ------------------------------
-def _get_feature_importance(model, feature_names):
-    importance = {f:0.0 for f in feature_names}
-    for _, m in model.models.items():
-        if hasattr(m,'feature_importances_'):
-            imp = np.array(m.feature_importances_, dtype=float)
-            if imp.sum()>0:
-                imp = imp / imp.sum()
-            for i, s in enumerate(imp):
-                importance[feature_names[i]] += float(s)
-    total = sum(importance.values())
-    if total>0:
-        return {k: v/total for k,v in sorted(importance.items(), key=lambda x:-x[1])[:10]}
-    return importance
-
-# ------------------------------
-# FALLBACK
-# ------------------------------
-def _fallback_forecast(df_ts, features, periods):
-    last_7_avg = float(df_ts['y'].tail(7).mean()) if len(df_ts)>0 else 0.0
-    future_dates = [df_ts['ds'].max() + timedelta(days=i+1) for i in range(periods)]
-    out_df = pd.DataFrame({'ds':future_dates, 'yhat':[last_7_avg]*periods})
-    out_df['yhat_lower'] = out_df['yhat'] * 0.7
-    out_df['yhat_upper'] = out_df['yhat'] * 1.3
-    return {'out_df': out_df, 'mae': float(abs(last_7_avg - df_ts['y'].iloc[-1]) if len(df_ts)>0 else 0.0),
-            'accuracy': 50.0, 'model':'MovingAverage(Fallback)', 'explanations':['Fallback average used'],
-            'feature_importance':{}}
-
-# ------------------------------
-# DB ACCESS (existing function)
-# ------------------------------
-def _fetch_sales(product_id):
-    query = """
-        SELECT "saleDate" AS date, "quantitySold" AS quantity
-        FROM "Sale"
-        WHERE "productId" = %(pid)s
-        ORDER BY "saleDate" ASC
-    """
-    df = pd.read_sql(query, engine, params={"pid": int(product_id)})
-    return df

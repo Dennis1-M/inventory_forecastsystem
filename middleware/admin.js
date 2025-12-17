@@ -1,5 +1,3 @@
-import colors from 'colors';
-
 export const admin = (req, res, next) => {
     if (req.user && req.user.role === "ADMIN") {
         return next();

@@ -1,24 +1,15 @@
+// routes/userRoutes.js
 import express from "express";
-import {
-    registerUser,
-    getUsers,
-    getUserById,
-    updateUser,
-    deleteUser
-} from "../controllers/userController.js";
-
-import { protect } from "../middleware/auth.js";
-import { admin } from "../middleware/admin.js";
+import { deleteUser, getUserById, getUsers, updateUser } from "../controllers/userController.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Public Registration
-router.post("/register", registerUser);
-
-// Admin-only user management
-router.get("/", protect, admin, getUsers);
-router.get("/:id", protect, admin, getUserById);
-router.put("/:id", protect, admin, updateUser);
-router.delete("/:id", protect, admin, deleteUser);
+// SuperAdmin only
+router.get("/", protect, allowRoles("SUPERADMIN"), getUsers);
+router.get("/:id", protect, allowRoles("SUPERADMIN"), getUserById);
+router.put("/:id", protect, allowRoles("SUPERADMIN"), updateUser);
+router.delete("/:id", protect, allowRoles("SUPERADMIN"), deleteUser);
 
 export default router;

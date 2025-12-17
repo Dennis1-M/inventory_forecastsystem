@@ -7,8 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Enums ---
+
+// --------------------------
+// ENUMS
+// --------------------------
 enum Role {
+  SUPERADMIN
   ADMIN
   MANAGER
   STAFF
@@ -22,123 +26,154 @@ enum MovementType {
   ADJUSTMENT_OUT
 }
 
-// --- User ---
+// --------------------------
+// USER MODEL
+// --------------------------
 model User {
-  id                  Int                    @id @default(autoincrement())
+  id                  Int                  @id @default(autoincrement())
   name                String
-  email               String                 @unique
+  email               String               @unique
   password            String
-  role                Role                   @default(STAFF)
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
+  role                Role                 @default(STAFF)
+  createdBy           Int?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   sales               Sale[]
   inventoryMovements  InventoryMovement[]
+  createdByUser       User?                @relation("CreatedUsers", fields: [createdBy], references: [id])
+  registeredUsers     User[]               @relation("CreatedUsers")
 }
 
-// --- Product Catalog ---
+// --------------------------
+// PRODUCT CATALOG
+// --------------------------
 model Category {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
   description String?
-  products  Product[]
+  products    Product[]
 }
 
 model Supplier {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
   contactEmail String?
   contactPhone String?
-  products  Product[]
-  movements InventoryMovement[]
+  products     Product[]
+  movements    InventoryMovement[]
 }
 
 model Product {
-  id                  Int                    @id @default(autoincrement())
-  sku                 String                 @unique @default("UNKNOWN_SKU")
-  name                String                 @unique
-  description         String?
-  unitPrice           Float                  @default(0)
-  currentStock        Int                    @default(0)
-  lowStockThreshold   Int                    @default(10)
-
-  // Relations
-  categoryId          Int                    @default(1)
-  category            Category               @relation(fields: [categoryId], references: [id])
-  supplierId          Int?
-  supplier            Supplier?              @relation(fields: [supplierId], references: [id])
-
-  sales               Sale[]
-  inventoryMovements  InventoryMovement[]
-  forecastRuns        ForecastRun[]
+  id                 Int                  @id @default(autoincrement())
+  sku                String               @unique @default("UNKNOWN_SKU")
+  name               String               @unique
+  description        String?
+  unitPrice          Float                @default(0)
+  currentStock       Int                  @default(0)
+  lowStockThreshold  Int                  @default(10)
+  reorderPoint       Int                  @default(10)
+  overStockLimit     Int                  @default(500)
+  categoryId         Int                  @default(1)
+  supplierId         Int?
+  
+  category           Category             @relation(fields: [categoryId], references: [id])
+  supplier           Supplier?            @relation(fields: [supplierId], references: [id])
+  sales              Sale[]
+  inventoryMovements InventoryMovement[]
+  forecastRuns       ForecastRun[]
+  alerts             Alert[]
 
   @@index([categoryId])
   @@index([supplierId])
 }
 
-// --- Sales ---
+// --------------------------
+// SALES MODEL
+// --------------------------
 model Sale {
-  id                  Int                    @id @default(autoincrement())
-  productId           Int
-  quantitySold        Int                    @default(0)
-  unitPriceSold       Float                  @default(0)
-  totalSaleAmount     Float                  @default(0)
-  saleDate            DateTime               @default(now())
-  notes               String?
+  id              Int       @id @default(autoincrement())
+  productId       Int
+  quantitySold    Int       @default(0)
+  unitPriceSold   Float     @default(0)
+  totalSaleAmount Float     @default(0)
+  saleDate        DateTime  @default(now())
+  notes           String?
 
-  product             Product                @relation(fields: [productId], references: [id])
-  userId              Int                    @default(1)
-  user                User                   @relation(fields: [userId], references: [id])
+  product         Product   @relation(fields: [productId], references: [id])
+  userId          Int
+  user            User      @relation(fields: [userId], references: [id])
 
   @@index([productId])
   @@index([userId])
 }
 
-// --- Inventory Movements ---
+// --------------------------
+// INVENTORY MOVEMENTS
+// --------------------------
 model InventoryMovement {
-  id                  Int                    @id @default(autoincrement())
-  productId           Int
-  type                MovementType
-  quantity            Int
-  costPrice           Float?
-  description         String?
-  timestamp           DateTime               @default(now())
+  id          Int          @id @default(autoincrement())
+  productId   Int
+  type        MovementType
+  quantity    Int
+  costPrice   Float?
+  description String?
+  timestamp   DateTime     @default(now())
+  userId      Int
+  supplierId  Int?
 
-  product             Product                @relation(fields: [productId], references: [id])
-  userId              Int
-  user                User                   @relation(fields: [userId], references: [id])
-  supplierId          Int?
-  supplier            Supplier?              @relation(fields: [supplierId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
 
   @@index([productId])
   @@index([userId])
   @@index([supplierId])
 }
 
-// --- Forecasting ---
+// --------------------------
+// FORECASTING MODELS
+// --------------------------
 model ForecastRun {
-  id        Int             @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   productId Int
   method    String
   horizon   Int
   mae       Float?
   accuracy  Float?
-  createdAt DateTime        @default(now())
+  createdAt DateTime       @default(now())
 
-  product   Product         @relation(fields: [productId], references: [id])
+  product   Product        @relation(fields: [productId], references: [id])
   points    ForecastPoint[]
 }
 
 model ForecastPoint {
-  id        Int        @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   runId     Int
   period    DateTime
   predicted Float
   lower95   Float?
   upper95   Float?
-  createdAt DateTime    @default(now())
+  createdAt DateTime      @default(now())
 
-  run       ForecastRun  @relation(fields: [runId], references: [id])
+  run       ForecastRun   @relation(fields: [runId], references: [id])
 
   @@index([runId])
+}
+
+// --------------------------
+// ALERTS MODEL
+// --------------------------
+model Alert {
+  id         Int       @id @default(autoincrement())
+  productId  Int
+  type       String    // "LOW_STOCK" | "OUT_OF_STOCK" | "OVERSTOCK"
+  message    String
+  createdAt  DateTime  @default(now())
+  isResolved Boolean   @default(false)
+
+  product    Product   @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }
