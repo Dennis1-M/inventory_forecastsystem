@@ -8,9 +8,11 @@ import express from "express";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 // Routes
-import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
+import alertRoutes from "./routes/alertRoutes.js";
 import apiRoutes from "./routes/apiRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import forecastTriggerRoutes from "./routes/forecastTriggerRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
 
@@ -55,6 +57,8 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api", apiRoutes);
+app.use("/api/alerts", alertRoutes);
+app.use("/api/forecast", forecastTriggerRoutes);
 
 // ------------------------------
 // Error Handling Middleware
@@ -65,6 +69,8 @@ app.use(errorHandler);
 // ------------------------------
 // Start Server
 // ------------------------------
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

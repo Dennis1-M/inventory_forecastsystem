@@ -2,20 +2,12 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import {
-  FaBars,
-  FaBell,
-  FaBox,
-  FaChartBar,
-  FaCog,
-  FaDatabase,
-  FaExclamationTriangle,
-  FaShoppingCart,
-  FaSignOutAlt,
-  FaTachometerAlt,
-  FaTimes,
-  FaUserCircle,
-  FaUsers
+  FaBars, FaBell, FaBox, FaChartBar,
+  FaCog, FaDatabase, FaExclamationTriangle,
+  FaShoppingCart, FaSignOutAlt, FaTachometerAlt,
+  FaTimes, FaUserCircle, FaUsers
 } from 'react-icons/fa';
+
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,13 +21,14 @@ export default function AdminDashboardLayout({ children }: AdminDashboardProps) 
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // LOG OUT BTN
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
       logoutUser();
       navigate('/login');
     }
   };
-
+    // MENU TABS
   const menuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: <FaTachometerAlt /> },
     { path: '/admin/users', label: 'User Management', icon: <FaUsers /> },
@@ -60,6 +53,8 @@ export default function AdminDashboardLayout({ children }: AdminDashboardProps) 
   };
 
   return (
+
+      // ADMIN SIDE BAR LAYOUT
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
@@ -105,7 +100,7 @@ export default function AdminDashboardLayout({ children }: AdminDashboardProps) 
               </Link>
             ))}
           </nav>
-
+          
           {/* Sidebar footer */}
           <div className="p-4 border-t border-gray-200">
             <button
@@ -118,7 +113,7 @@ export default function AdminDashboardLayout({ children }: AdminDashboardProps) 
           </div>
         </div>
       </div>
-
+      
       {/* Main content */}
       <div className="md:pl-64">
         {/* Top bar */}

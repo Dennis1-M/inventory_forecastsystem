@@ -22,7 +22,7 @@ interface RecentUser {
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
 
-  // Mock data - we'll replace with real API calls later
+  // MOCK DATA TO REPLACED WITH REAL API'S
   const dashboardStats: DashboardStat[] = [
     { title: 'Total Users', value: 156, icon: <FaUsers />, color: 'blue', subtitle: '24 active today' },
     { title: 'Total Products', value: 342, icon: <FaBox />, color: 'green', subtitle: '12 low in stock' },
@@ -30,6 +30,7 @@ export default function AdminDashboardPage() {
     { title: 'Pending Alerts', value: 8, icon: <FaExclamationTriangle />, color: 'yellow', subtitle: 'Requires attention' },
   ];
 
+   // MOCK DATA TO REPLACED WITH REAL API'S
   const recentUsers: RecentUser[] = [
     { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', isActive: true },
     { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Manager', isActive: true },
@@ -37,7 +38,7 @@ export default function AdminDashboardPage() {
     { id: 4, name: 'Sarah Williams', email: 'sarah@example.com', role: 'Staff', isActive: true },
     { id: 5, name: 'Tom Brown', email: 'tom@example.com', role: 'Staff', isActive: true },
   ];
-
+       // QUICK ACTION BUTTONS NEED TO BE IMPLEMENTED WITH REAL ROUTES AND LOGIC
   const quickActions = [
     { label: 'Add User', icon: <FaUserPlus />, color: 'blue', path: '/admin/users/new' },
     { label: 'Add Product', icon: <FaBox />, color: 'green', path: '/admin/products/new' },
@@ -55,6 +56,7 @@ export default function AdminDashboardPage() {
     }
   };
 
+   // WELCOME SECTION
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
@@ -66,6 +68,7 @@ export default function AdminDashboardPage() {
           Manage your system, users, products, and orders from here.
         </p>
       </div>
+
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
