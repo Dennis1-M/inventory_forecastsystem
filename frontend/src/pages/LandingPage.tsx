@@ -1,161 +1,155 @@
-// src/pages/LandingPage.tsx
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { getRoleDashboard } from '@/components/auth/ProtectedRoute';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/services/authService';
+import { ArrowRight, BarChart3, Loader2, Package, Shield, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const LandingPage = () => {
   const [superAdminExists, setSuperAdminExists] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    checkSuperAdmin();
-  }, []);
+    // If already authenticated, redirect to dashboard
+    if (isAuthenticated && user) {
+      navigate(getRoleDashboard(user.role));
+      return;
+    }
 
-  const checkSuperAdmin = async () => {
-    try {
-      const response = await fetch('http://localhost:5001/api/auth/check-superadmin');
-      const data = await response.json();
-      setSuperAdminExists(data.exists);
-    } catch (error) {
-      console.error('Error checking SuperAdmin:', error);
-      setSuperAdminExists(false);
-    } finally {
-      setLoading(false);
+    // Check if SuperAdmin exists
+    const checkSuperAdmin = async () => {
+      setIsChecking(true);
+      const exists = await authService.checkSuperAdminExists();
+      setSuperAdminExists(exists);
+      setIsChecking(false);
+    };
+
+    checkSuperAdmin();
+  }, [isAuthenticated, user, navigate]);
+
+  const handleGetStarted = () => {
+    if (superAdminExists) {
+      navigate('/login');
+    } else {
+      navigate('/setup');
     }
   };
 
-  if (loading) {
+  if (isChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground">Initializing system...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-purple-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Inventory Management</h1>
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-dark" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(199_89%_48%/0.15),transparent_50%)]" />
+        
+        {/* Content */}
+        <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-8">
+          <div className="flex flex-col items-center text-center">
+            {/* Logo */}
+            <div className="mb-8 flex items-center justify-center rounded-2xl bg-primary/10 p-4 ring-1 ring-primary/20">
+              <Package className="h-12 w-12 text-primary" />
             </div>
-            <div className="flex items-center space-x-4">
+
+            {/* Title */}
+            <h1 className="animate-fade-in text-4xl font-bold tracking-tight sm:text-6xl">
+              <span className="text-gradient">Inventory</span>
+              <span className="text-foreground"> Management</span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="mt-6 max-w-2xl animate-fade-in text-lg leading-8 text-muted-foreground" style={{ animationDelay: '0.1s' }}>
+              A comprehensive inventory management system with ML-powered alerts, 
+              role-based access control, and real-time analytics.
+            </p>
+
+            {/* CTA Button */}
+            <div className="mt-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <Button 
+                size="lg" 
+                onClick={handleGetStarted}
+                className="group relative h-12 px-8 text-base font-medium"
+              >
+                {superAdminExists ? 'Login to Dashboard' : 'Setup System'}
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </div>
+
+            {/* Status Badge */}
+            <div className="mt-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
               {superAdminExists ? (
-                <Link
-                  to="/login"
-                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-                >
-                  Login
-                </Link>
+                <span className="inline-flex items-center gap-2 rounded-full bg-success/10 px-4 py-2 text-sm text-success ring-1 ring-success/20">
+                  <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                  System Ready
+                </span>
               ) : (
-                <Link
-                  to="/register-superuser"
-                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-                >
-                  Get Started
-                </Link>
+                <span className="inline-flex items-center gap-2 rounded-full bg-warning/10 px-4 py-2 text-sm text-warning ring-1 ring-warning/20">
+                  <span className="h-2 w-2 rounded-full bg-warning animate-pulse" />
+                  First-Time Setup Required
+                </span>
               )}
             </div>
           </div>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Modern Inventory Management
-            <span className="text-purple-600"> System</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto">
-            A comprehensive solution for managing inventory, sales, and users with 
-            role-based access control.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            {superAdminExists ? (
-              <>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center px-8 py-3 text-base font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700"
-                >
-                  Login to System
-                </Link>
-                
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/register-superuser"
-                  className="inline-flex items-center justify-center px-8 py-3 text-base font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700"
-                >
-                  Setup System
-                </Link>
-                <button
-                  onClick={() => alert('System setup is required first. Please register as Super Admin.')}
-                  className="inline-flex items-center justify-center px-8 py-3 text-base font-medium rounded-lg text-purple-700 bg-purple-100 hover:bg-purple-200"
-                >
-                  Learn More
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white p-6 rounded-xl shadow">
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-              <span className="text-blue-600 font-bold">👑</span>
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Super Admin</h3>
-            <p className="text-gray-600">Full system control, user management, and configuration</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow">
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-              <span className="text-green-600 font-bold">🛡️</span>
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Admin Access</h3>
-            <p className="text-gray-600">Manage users, view reports, and oversee operations</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow">
-            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-              <span className="text-purple-600 font-bold">📊</span>
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Role-based Dashboard</h3>
-            <p className="text-gray-600">Customized dashboard for each user role</p>
-          </div>
-        </div>
-
-        {/* System Status */}
-        <div className="mt-12 bg-white rounded-xl shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">System Status</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600">Initial Setup</p>
-              <p className={`font-medium ${superAdminExists ? 'text-green-600' : 'text-yellow-600'}`}>
-                {superAdminExists ? '✅ Completed' : '⚠️ Required'}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Access Level</p>
-              <p className="font-medium text-purple-600">
-                {superAdminExists ? 'Multi-User Ready' : 'Setup Mode'}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Next Step</p>
-              <p className="font-medium">
-                {superAdminExists ? 'Login to continue' : 'Register Super Admin'}
-              </p>
-            </div>
+          {/* Feature Cards */}
+          <div className="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard
+              icon={Shield}
+              title="Role-Based Access"
+              description="SuperAdmin, Admin, Manager, and Staff roles with granular permissions"
+              delay="0.4s"
+            />
+            <FeatureCard
+              icon={BarChart3}
+              title="ML-Powered Alerts"
+              description="Predictive analytics for stock levels, expiry dates, and demand forecasting"
+              delay="0.5s"
+            />
+            <FeatureCard
+              icon={Users}
+              title="Team Management"
+              description="Complete user management with task assignment and activity tracking"
+              delay="0.6s"
+            />
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+interface FeatureCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  delay: string;
+}
+
+const FeatureCard = ({ icon: Icon, title, description, delay }: FeatureCardProps) => (
+  <div 
+    className="animate-slide-up rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card"
+    style={{ animationDelay: delay }}
+  >
+    <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3">
+      <Icon className="h-6 w-6 text-primary" />
+    </div>
+    <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+    <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+  </div>
+);
 
 export default LandingPage;
