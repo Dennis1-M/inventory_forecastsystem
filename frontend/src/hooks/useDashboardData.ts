@@ -1,5 +1,5 @@
-// useDashboardData.ts
 import { useAuth } from '@/contexts/AuthContext';
+
 import { inventoryAPI, testBackendConnection } from '@/lib/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -125,11 +125,15 @@ export const useDashboardData = (autoRefresh = true) => {
               stats.lowStockItems = res.lowStockItems ?? stats.lowStockItems;
             }
           })
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Admin dashboard not available'); 
+          }),
 
         inventoryAPI.getAdminStats()
           .then(() => availableEndpoints.push('admin_stats'))
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Admin stats not available'); 
+          }),
 
         inventoryAPI.getUsers()
           .then(users => {
@@ -139,7 +143,9 @@ export const useDashboardData = (autoRefresh = true) => {
                 users.length ?? users.total ?? users.data?.length ?? 0;
             }
           })
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Users endpoint failed'); 
+          }),
 
         inventoryAPI.getProducts()
           .then(products => {
@@ -149,7 +155,9 @@ export const useDashboardData = (autoRefresh = true) => {
                 products.length ?? products.total ?? products.data?.length ?? 0;
             }
           })
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Products endpoint failed'); 
+          }),
 
         inventoryAPI.getInventorySummary()
           .then(summary => {
@@ -158,7 +166,9 @@ export const useDashboardData = (autoRefresh = true) => {
             stats.lowStockItems = summary.lowStockItems || 0;
             stats.totalProducts = summary.totalProducts || 0;
           })
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Inventory summary not available'); 
+          }),
 
         inventoryAPI.getAlerts()
           .then(alertsData => {
@@ -168,7 +178,9 @@ export const useDashboardData = (autoRefresh = true) => {
               stats.alertsCount = alertsData.length;
             }
           })
-          .catch(() => {}),
+          .catch(() => {
+            // console.log('Alerts endpoint failed'); 
+          }),
       ]);
 
       systemHealth.availableEndpoints = availableEndpoints;
