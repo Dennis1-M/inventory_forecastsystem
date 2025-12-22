@@ -11,6 +11,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import SuperAdminSetupPage from "./pages/SuperAdminSetupPage";
+import UsersPage from './pages/users/UsersPage';
 
 // Dashboards
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
@@ -33,23 +34,34 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/setup" element={<SuperAdminSetupPage />} />
 
-            {/* SuperAdmin Routes */}
-            <Route
-              path="/superadmin"
-              element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/superadmin/*"
-              element={
-                <ProtectedRoute allowedRoles={['SUPERADMIN']}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
+           {/* SuperAdmin Routes */}
+<Route
+  path="/superadmin"
+  element={
+    <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+      <SuperAdminDashboard />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/superadmin/users"
+  element={
+    <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+      <UsersPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/superadmin/*"
+  element={
+    <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+      <SuperAdminDashboard />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* Admin Routes */}
             <Route

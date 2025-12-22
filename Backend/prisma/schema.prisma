@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 // --------------------------
 // ENUMS
 // --------------------------
@@ -30,20 +29,20 @@ enum MovementType {
 // USER MODEL
 // --------------------------
 model User {
-  id                  Int                  @id @default(autoincrement())
+  id                  Int      @id @default(autoincrement())
   name                String
-  email               String               @unique
+  email               String   @unique
   password            String
-  role                Role                 @default(STAFF)
+  role                Role     @default(STAFF)
   createdBy           Int?
-  isActive            Boolean              @default(true)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   sales               Sale[]
   inventoryMovements  InventoryMovement[]
-  createdByUser       User?                @relation("CreatedUsers", fields: [createdBy], references: [id])
-  registeredUsers     User[]               @relation("CreatedUsers")
+  createdByUser       User?    @relation("CreatedUsers", fields: [createdBy], references: [id])
+  registeredUsers     User[]   @relation("CreatedUsers")
 }
 
 // --------------------------
@@ -93,17 +92,17 @@ model Product {
 // SALES MODEL
 // --------------------------
 model Sale {
-  id              Int       @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   productId       Int
-  quantitySold    Int       @default(0)
-  unitPriceSold   Float     @default(0)
-  totalSaleAmount Float     @default(0)
-  saleDate        DateTime  @default(now())
+  quantitySold    Int      @default(0)
+  unitPriceSold   Float    @default(0)
+  totalSaleAmount Float    @default(0)
+  saleDate        DateTime @default(now())
   notes           String?
 
-  product         Product   @relation(fields: [productId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
   userId          Int
-  user            User      @relation(fields: [userId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
 
   @@index([productId])
   @@index([userId])
@@ -168,7 +167,7 @@ model ForecastPoint {
 model Alert {
   id         Int       @id @default(autoincrement())
   productId  Int
-  type       String    // "LOW_STOCK" | "OUT_OF_STOCK" | "OVERSTOCK"
+  type       String
   message    String
   createdAt  DateTime  @default(now())
   isResolved Boolean   @default(false)

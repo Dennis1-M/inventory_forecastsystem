@@ -3,16 +3,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/auth';
 import {
-    AlertTriangle,
-    BarChart3,
-    BoxesIcon,
-    ChevronLeft,
-    LayoutDashboard,
-    LogOut,
-    Menu,
-    Package,
-    Settings,
-    Users
+  AlertTriangle,
+  BarChart3,
+  BoxesIcon,
+  ChevronLeft,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  Users
 } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
