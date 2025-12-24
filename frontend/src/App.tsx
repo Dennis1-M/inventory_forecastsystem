@@ -11,7 +11,19 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import SuperAdminSetupPage from "./pages/SuperAdminSetupPage";
-import UsersPage from './pages/users/UsersPage';
+
+// Admin sub-pages
+import AlertsPage from './pages/admin/AlertsPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
+import InventoryPage from './pages/admin/InventoryPage';
+import SettingsPage from './pages/admin/SettingsPage';
+import UsersPage from './pages/admin/UsersPage';
+
+
+import ManagerAlertsPage from './pages/manager/AlertsPage';
+import ManagerAnalyticsPage from './pages/manager/AnalyticsPage';
+import ManagerInventoryPage from './pages/manager/InventoryPage';
+
 
 // Dashboards
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
@@ -61,43 +73,36 @@ const App = () => (
     </ProtectedRoute>
   }
 />
-
-
             {/* Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/*"
-              element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
+           <Route
+  path="/admin/*"
+  element={
+    <ProtectedRoute allowedRoles={['ADMIN']}>
+      <AdminDashboard />
+    </ProtectedRoute>
+  }
+>
+  <Route path="users" element={<UsersPage />} />
+  <Route path="inventory" element={<InventoryPage />} />
+  <Route path="alerts" element={<AlertsPage />} />
+  <Route path="analytics" element={<AnalyticsPage />} />
+  <Route path="settings" element={<SettingsPage />} />
+</Route>
 
-            {/* Manager Routes */}
-            <Route
-              path="/manager"
-              element={
-                <ProtectedRoute allowedRoles={['MANAGER']}>
-                  <ManagerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager/*"
-              element={
-                <ProtectedRoute allowedRoles={['MANAGER']}>
-                  <ManagerDashboard />
-                </ProtectedRoute>
-              }
-            />
+
+      {/* Manager Routes */}
+<Route
+  path="/manager/*"
+  element={
+    <ProtectedRoute allowedRoles={['MANAGER']}>
+      <ManagerDashboard />
+    </ProtectedRoute>
+  }
+>
+  <Route path="inventory" element={<ManagerInventoryPage />} />
+  <Route path="alerts" element={<ManagerAlertsPage />} />
+  <Route path="analytics" element={<ManagerAnalyticsPage />} />
+</Route>
 
             {/* Staff Routes */}
             <Route

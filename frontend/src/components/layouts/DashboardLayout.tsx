@@ -145,7 +145,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
           {!collapsed && user && (
             <div className="mb-3 rounded-lg bg-sidebar-accent px-3 py-2">
               <p className="text-sm font-medium text-sidebar-foreground">
-                {user.firstName} {user.lastName}
+                {user.name}
               </p>
               <p className="text-xs text-muted-foreground">{user.role}</p>
             </div>

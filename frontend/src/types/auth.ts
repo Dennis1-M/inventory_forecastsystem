@@ -4,13 +4,13 @@ export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'MANAGER' | 'STAFF';
 // User interface from backend
 export interface User {
   id: string;
+  name: string;   
   email: string;
-  firstName: string;
-  lastName: string;
   role: UserRole;
   createdAt: string;
   updatedAt: string;
 }
+
 
 // Auth response from login
 export interface AuthResponse {

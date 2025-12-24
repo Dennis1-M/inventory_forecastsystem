@@ -105,7 +105,7 @@ export const inventoryAPI = {
   },
 
   getAdminDashboard: async () => {
-    const response = await api.get("/admin/dashboard");
+    const response = await api.get("/dashboard");
     return response.data;
   },
 

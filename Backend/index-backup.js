@@ -13,6 +13,7 @@ import apiRoutes from "./routes/apiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import forecastTriggerRoutes from "./routes/forecastTriggerRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
@@ -59,6 +60,8 @@ app.use("/api/users", userRoutes);
 app.use("/api", apiRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/forecast", forecastTriggerRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
 
 // ------------------------------
 // Error Handling Middleware

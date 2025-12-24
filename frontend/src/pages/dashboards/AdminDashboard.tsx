@@ -1,181 +1,262 @@
+// frontend/src/pages/dashboards/AdminDashboard.tsx
+
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import api from '@/lib/axios';
 import {
-    AlertTriangle,
-    ArrowDownRight,
-    ArrowUpRight,
-    BarChart3,
-    BoxesIcon,
-    Package,
-    TrendingUp,
-    Users
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BoxesIcon,
+  Users
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import {
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts';
+
+interface InventoryMovement {
+  id: number;
+  quantity: number;
+  type: string;
+  timestamp: string;
+  product: { name: string };
+}
+
+interface DashboardStats {
+  totalProducts: number;
+  lowStockItems: number;
+  teamMembers: number;
+  activeAlerts: number;
+  trends?: {
+    totalProducts?: number[];
+    lowStockItems?: number[];
+    teamMembers?: number[];
+    activeAlerts?: number[];
+  };
+}
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await api.get('/dashboard'); // /api/dashboard mounted in backend
+      setStats(res.data.stats);
+      setMovements(res.data.recentMovements || []);
+      setLastUpdated(new Date());
+    } catch (err: any) {
+      console.error('Dashboard fetch failed:', err);
+      setError('Failed to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    const interval = setInterval(fetchDashboard, 60000); // refresh every 60s
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <DashboardLayout role="ADMIN">
-      <div className="space-y-8">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      <div className="space-y-6">
         {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground">
-            Welcome back, {user?.firstName}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Admin Dashboard — Full operational control
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {user?.email}</h1>
+            <p className="text-muted-foreground">Admin Dashboard — Full operational control</p>
+          </div>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Products"
-            value="—"
-            change="+0%"
-            trend="up"
-            icon={BoxesIcon}
-            delay="0.1s"
-          />
-          <StatCard
-            title="Low Stock Items"
-            value="—"
-            change="0"
-            trend="neutral"
-            icon={AlertTriangle}
-            variant="warning"
-            delay="0.2s"
-          />
-          <StatCard
-            title="Team Members"
-            value="—"
-            change="+0"
-            trend="up"
-            icon={Users}
-            delay="0.3s"
-          />
-          <StatCard
-            title="Active Alerts"
-            value="—"
-            change="0"
-            trend="neutral"
-            icon={AlertTriangle}
-            delay="0.4s"
-          />
+        {/* Navigation Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => navigate('/admin')} className="btn">Dashboard</button>
+          <button onClick={() => navigate('/admin/users')} className="btn">Users</button>
+          <button onClick={() => navigate('/admin/inventory')} className="btn">Inventory</button>
+          <button onClick={() => navigate('/admin/alerts')} className="btn">Alerts</button>
+          <button onClick={() => navigate('/admin/analytics')} className="btn">Analytics</button>
+          <button onClick={() => navigate('/admin/settings')} className="btn">Settings</button>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2 animate-slide-up rounded-xl border border-border bg-card p-6" style={{ animationDelay: '0.5s' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Inventory Overview</h2>
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+        {/* Error Message */}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {/* Default Dashboard Content */}
+        {stats && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Products"
+                value={stats.totalProducts}
+                icon={BoxesIcon}
+                trendData={stats.trends?.totalProducts || []}
+                onClick={() => navigate('/admin/inventory')}
+              />
+              <StatCard
+                title="Low Stock Items"
+                value={stats.lowStockItems}
+                icon={AlertTriangle}
+                warning
+                trendData={stats.trends?.lowStockItems || []}
+                onClick={() => navigate('/admin/inventory?filter=low-stock')}
+              />
+              <StatCard
+                title="Team Members"
+                value={stats.teamMembers}
+                icon={Users}
+                trendData={stats.trends?.teamMembers || []}
+                onClick={() => navigate('/admin/users')}
+              />
+              <StatCard
+                title="Active Alerts"
+                value={stats.activeAlerts}
+                icon={AlertTriangle}
+                warning
+                trendData={stats.trends?.activeAlerts || []}
+                onClick={() => navigate('/admin/alerts')}
+              />
             </div>
-            
-            <div className="mt-6 flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30">
-              <div className="text-center">
-                <TrendingUp className="mx-auto h-10 w-10 text-muted-foreground" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Analytics will appear here when connected to backend
-                </p>
+
+            {/* Recent Movements Table */}
+            {movements.length > 0 && (
+              <div className="rounded-xl border bg-card p-6">
+                <h2 className="mb-4 text-lg font-semibold">Recent Stock Movements</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="p-2 text-left">Product</th>
+                        <th className="p-2 text-left">Type</th>
+                        <th className="p-2 text-left">Qty</th>
+                        <th className="p-2 text-left">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movements.map(m => (
+                        <tr key={m.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2">{m.product.name}</td>
+                          <td className="p-2">{m.type}</td>
+                          <td className="p-2">{m.quantity}</td>
+                          <td className="p-2">{new Date(m.timestamp).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Quick Stats */}
-          <div className="animate-slide-up rounded-xl border border-border bg-card p-6" style={{ animationDelay: '0.6s' }}>
-            <h2 className="text-lg font-semibold text-foreground">ML Alerts</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Predictive insights</p>
-            
-            <div className="mt-6 space-y-4">
-              <AlertItem 
-                title="Stock Prediction"
-                description="ML predictions will appear here"
-                severity="info"
-              />
-              <AlertItem 
-                title="Expiry Alerts"
-                description="Expiring items will be flagged"
-                severity="warning"
-              />
-              <AlertItem 
-                title="Demand Forecast"
-                description="AI-powered demand analysis"
-                severity="info"
-              />
-            </div>
-          </div>
-        </div>
+            {/* Inventory Trend Chart */}
+            {movements.length > 0 && (
+              <div className="rounded-xl border bg-card p-6">
+                <h2 className="mb-4 text-lg font-semibold">Inventory Movement Trend</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart
+                    data={movements.map(m => ({
+                      time: new Date(m.timestamp).toLocaleTimeString(),
+                      quantity: m.quantity,
+                    }))}
+                  >
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="quantity" stroke="#4F46E5" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </>
+        )}
 
-        {/* Bottom Section */}
-        <div className="animate-slide-up rounded-xl border border-border bg-card p-6" style={{ animationDelay: '0.7s' }}>
-          <div className="flex items-center gap-3">
-            <Package className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Recent Stock Movements</h2>
-          </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Stock movement history will display here when backend is connected.
-          </div>
-        </div>
+        {/* Nested Pages Render Here */}
+        <Outlet />
       </div>
     </DashboardLayout>
   );
 };
 
-interface StatCardProps {
+// KPI Card Component
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  warning,
+  trendData = [],
+  onClick,
+}: {
   title: string;
-  value: string;
-  change: string;
-  trend: 'up' | 'down' | 'neutral';
+  value: number;
   icon: React.ComponentType<{ className?: string }>;
-  variant?: 'default' | 'warning';
-  delay: string;
-}
+  warning?: boolean;
+  trendData?: number[];
+  onClick?: () => void;
+}) => {
+  const latest = trendData[trendData.length - 1] || 0;
+  const previous = trendData[trendData.length - 2] || 0;
+  const trendPercent = previous ? Math.round(((latest - previous) / previous) * 100) : 0;
+  const trendColor = trendPercent > 0 ? 'text-green-600' : trendPercent < 0 ? 'text-red-600' : 'text-gray-400';
+  const TrendIcon = trendPercent > 0 ? ArrowUpRight : trendPercent < 0 ? ArrowDownRight : null;
 
-const StatCard = ({ title, value, change, trend, icon: Icon, variant = 'default', delay }: StatCardProps) => (
-  <div 
-    className="animate-slide-up rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/30"
-    style={{ animationDelay: delay }}
-  >
-    <div className="flex items-center justify-between">
-      <div className={`rounded-lg p-2 ${variant === 'warning' ? 'bg-warning/10' : 'bg-primary/10'}`}>
-        <Icon className={`h-5 w-5 ${variant === 'warning' ? 'text-warning' : 'text-primary'}`} />
-      </div>
-      {trend !== 'neutral' && (
-        <div className={`flex items-center gap-1 text-sm ${trend === 'up' ? 'text-success' : 'text-destructive'}`}>
-          {trend === 'up' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-          {change}
-        </div>
-      )}
-    </div>
-    <div className="mt-4">
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      <p className="text-sm text-muted-foreground">{title}</p>
-    </div>
-  </div>
-);
-
-interface AlertItemProps {
-  title: string;
-  description: string;
-  severity: 'info' | 'warning' | 'error';
-}
-
-const AlertItem = ({ title, description, severity }: AlertItemProps) => {
-  const colors = {
-    info: 'bg-primary/10 text-primary',
-    warning: 'bg-warning/10 text-warning',
-    error: 'bg-destructive/10 text-destructive',
-  };
+  const sparklineData = trendData.map((v, i) => ({ x: i, y: v }));
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3">
-      <div className={`mt-0.5 h-2 w-2 rounded-full ${colors[severity].split(' ')[0].replace('/10', '')}`} />
-      <div>
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-xl border bg-card p-4 hover:shadow-lg transition"
+    >
+      <div className="flex items-center justify-between">
+        <div className={`rounded-lg p-2 ${warning ? 'bg-yellow-100' : 'bg-primary/10'}`}>
+          <Icon className={warning ? 'text-yellow-600' : 'text-primary'} />
+        </div>
+        {TrendIcon && (
+          <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
+            <TrendIcon className="h-4 w-4" />
+            <span>{Math.abs(trendPercent)}%</span>
+          </div>
+        )}
       </div>
+      <div className="mt-2">
+        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-sm text-muted-foreground">{title}</p>
+      </div>
+      {sparklineData.length > 1 && (
+        <ResponsiveContainer width="100%" height={40}>
+          <LineChart data={sparklineData}>
+            <Line type="monotone" dataKey="y" stroke={warning ? '#d97706' : '#4F46E5'} strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 };

@@ -62,6 +62,8 @@ await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
 await loadRoute("./routes/categoryRoutes.js", "categories");
+await loadRoute("./routes/dashboardRoutes.js", "dashboard");
+
 
 /* ===============================
    TEST / HEALTH ROUTES
