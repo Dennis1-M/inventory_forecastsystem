@@ -1,4 +1,5 @@
 // index.js
+//
 // Main Express server setup
 
 import cors from "cors";
@@ -11,10 +12,10 @@ import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import apiRoutes from "./routes/apiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
-import forecastTriggerRoutes from "./routes/forecastTriggerRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
-
+import forecastTriggerRoutes from "./routes/forecastTriggerRoutes.js";
+import posRoutes from "./routes/posRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 dotenv.config();
 
 const app = express(); // ✅ YOU WERE MISSING THIS
@@ -61,6 +62,7 @@ app.use("/api", apiRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/forecast", forecastTriggerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/pos", posRoutes);
 
 
 // ------------------------------

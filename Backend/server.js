@@ -2,7 +2,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-
+import mpesaRoutes from "./routes/mpesaRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -63,7 +63,7 @@ await loadRoute("./routes/inventoryRoutes.js", "inventory");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
-
+await loadRoute("./routes/mpesaRoutes.js", "mpesa");
 
 /* ===============================
    TEST / HEALTH ROUTES

@@ -202,3 +202,185 @@
     transform: translateX(0);
   }
 }
+
+
+
+@layer base {
+  :root {
+    /* Kenya-inspired green palette */
+    --background: 150 10% 97%;
+    --foreground: 150 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 25% 10%;
+
+    /* Primary: Kenyan green */
+    --primary: 145 63% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Soft sage */
+    --secondary: 150 20% 94%;
+    --secondary-foreground: 150 25% 15%;
+
+    --muted: 150 10% 92%;
+    --muted-foreground: 150 10% 45%;
+
+    /* Accent: M-PESA inspired warm orange */
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning: Amber for low stock */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 15%;
+
+    /* Success: For completed transactions */
+    --success: 145 63% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 150 15% 88%;
+    --input: 150 15% 88%;
+    --ring: 145 63% 32%;
+
+    --radius: 0.75rem;
+
+    /* Custom POS tokens */
+    --pos-panel: 0 0% 100%;
+    --pos-panel-border: 150 15% 90%;
+    --pos-search-bg: 150 10% 95%;
+    --pos-item-hover: 150 20% 96%;
+    --pos-cart-bg: 150 8% 98%;
+
+    --sidebar-background: 150 25% 10%;
+    --sidebar-foreground: 150 10% 95%;
+    --sidebar-primary: 145 63% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 150 20% 18%;
+    --sidebar-accent-foreground: 150 10% 95%;
+    --sidebar-border: 150 20% 18%;
+    --sidebar-ring: 145 63% 45%;
+  }
+
+  .dark {
+    --background: 150 20% 8%;
+    --foreground: 150 10% 95%;
+
+    --card: 150 20% 12%;
+    --card-foreground: 150 10% 95%;
+
+    --popover: 150 20% 12%;
+    --popover-foreground: 150 10% 95%;
+
+    --primary: 145 63% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 15% 18%;
+    --secondary-foreground: 150 10% 95%;
+
+    --muted: 150 15% 18%;
+    --muted-foreground: 150 10% 60%;
+
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --success: 145 63% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 150 15% 20%;
+    --input: 150 15% 20%;
+    --ring: 145 63% 45%;
+
+    --pos-panel: 150 20% 12%;
+    --pos-panel-border: 150 15% 20%;
+    --pos-search-bg: 150 15% 15%;
+    --pos-item-hover: 150 15% 18%;
+    --pos-cart-bg: 150 18% 10%;
+
+    --sidebar-background: 150 25% 6%;
+    --sidebar-foreground: 150 10% 95%;
+    --sidebar-primary: 145 63% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 150 20% 12%;
+    --sidebar-accent-foreground: 150 10% 95%;
+    --sidebar-border: 150 20% 12%;
+    --sidebar-ring: 145 63% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .pos-panel {
+    @apply bg-[hsl(var(--pos-panel))] border border-[hsl(var(--pos-panel-border))] rounded-xl shadow-sm;
+  }
+
+  .pos-button {
+    @apply transition-all duration-150 active:scale-[0.98] touch-manipulation;
+  }
+
+  .pos-item-hover {
+    @apply hover:bg-[hsl(var(--pos-item-hover))] transition-colors duration-150;
+  }
+
+  .stock-badge-low {
+    @apply bg-warning/15 text-warning border border-warning/30;
+  }
+
+  .stock-badge-out {
+    @apply bg-destructive/15 text-destructive border border-destructive/30;
+  }
+
+  .stock-badge-ok {
+    @apply bg-success/15 text-success border border-success/30;
+  }
+
+  .payment-button {
+    @apply flex-1 h-16 text-lg font-semibold rounded-xl transition-all duration-150 active:scale-[0.98] touch-manipulation;
+  }
+
+  .mpesa-gradient {
+    background: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(35 95% 50%) 100%);
+  }
+
+  .checkout-gradient {
+    background: linear-gradient(135deg, hsl(145 63% 32%) 0%, hsl(145 63% 42%) 100%);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+}
