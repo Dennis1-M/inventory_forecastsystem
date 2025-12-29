@@ -1,3 +1,4 @@
+// src/components/auth/ProtectedRoute.tsx
 import { useAuth } from '@/contexts/AuthContext';
 import type { UserRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
@@ -12,7 +13,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
-  // Show loading spinner while checking auth
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -24,22 +25,21 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     );
   }
 
-  // Redirect to login if not authenticated
+  // Not authenticated → login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
+  // Authenticated but role not allowed → unauthorized
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Redirect to their appropriate dashboard
-    return <Navigate to={getRoleDashboard(user.role)} replace />;
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return <>{children}</>;
 }
 
-// Helper to get dashboard path by role
-function getRoleDashboard(role: UserRole): string {
+// Optional helper (kept, no auto-redirect usage)
+export function getRoleDashboard(role: UserRole): string {
   switch (role) {
     case 'SUPERADMIN':
       return '/superadmin';
@@ -53,5 +53,3 @@ function getRoleDashboard(role: UserRole): string {
       return '/';
   }
 }
-
-export { getRoleDashboard };

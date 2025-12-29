@@ -1,18 +1,27 @@
 // App.tsx
+// NOTE:
+// - BrowserRouter is PROVIDED in main.tsx (DO NOT add it here)
+// - QueryClientProvider is PROVIDED in main.tsx
+// - AuthProvider is PROVIDED in main.tsx
+// This file must ONLY define routes and UI-level providers
+
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { Route, Routes } from "react-router-dom";
+
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+
 import api from "@/lib/axiosClient";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 // Pages
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import SuperAdminSetupPage from "./pages/SuperAdminSetupPage";
+import Unauthorized from "./pages/Unauthorized";
 
 // Admin sub-pages
 import AlertsPage from "./pages/admin/AlertsPage";
@@ -29,104 +38,101 @@ import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
 
 import type { Product } from "@/types/pos";
 
-const queryClient = new QueryClient();
-
-// ------------------ StaffDashboard Wrapper ------------------
+// ------------------ Staff Dashboard Wrapper ------------------
 const StaffDashboardWrapper = () => {
   const { user } = useAuth();
 
-  // Fetch products dynamically
+  // Fetch products
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["products"],
     queryFn: async () => {
-      const res = await api.get("/products"); // adjust endpoint if needed
+      const res = await api.get("/products");
       return res.data;
     },
   });
 
+  // Loading guard
   if (!user || isLoading) return <div>Loading...</div>;
 
-  // Ensure user role is STAFF
+  // Role guard (extra safety)
   if (user.role !== "STAFF") return <div>Access Denied</div>;
 
   return <StaffDashboard user={user} products={products} />;
 };
 
-// ------------------ App Component ------------------
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* ---------------- Public Routes ---------------- */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/setup" element={<SuperAdminSetupPage />} />
+// ------------------ App ------------------
+const App = () => {
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
 
-            {/* ---------------- SuperAdmin Routes ---------------- */}
-            <Route
-              path="/superadmin/*"
-              element={
-                <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/superadmin/users"
-              element={
-                <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
-                  <UsersPage />
-                </ProtectedRoute>
-              }
-            />
+      <Routes>
+        {/* ---------------- Public Routes ---------------- */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/setup" element={<SuperAdminSetupPage />} />
+        <Route path="/unauthorized" element={<Unauthorized />} /> {/* new route */}
 
-            {/* ---------------- Admin Routes ---------------- */}
-            <Route
-              path="/admin/*"
-              element={
-                <ProtectedRoute allowedRoles={["ADMIN"]}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="users" element={<UsersPage />} />
-              <Route path="inventory" element={<InventoryPage />} />
-              <Route path="alerts" element={<AlertsPage />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+        {/* ---------------- SuperAdmin Routes ---------------- */}
+        <Route
+          path="/superadmin/*"
+          element={
+            <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
+              <SuperAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/users"
+          element={
+            <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
 
-            {/* ---------------- Manager Routes ---------------- */}
-            <Route
-              path="/manager/*"
-              element={
-                <ProtectedRoute allowedRoles={["MANAGER"]}>
-                  <ManagerDashboard />
-                </ProtectedRoute>
-              }
-            />
+        {/* ---------------- Admin Routes ---------------- */}
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="users" element={<UsersPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
+          <Route path="alerts" element={<AlertsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
 
-            {/* ---------------- Staff Routes ---------------- */}
-            <Route
-              path="/staff/*"
-              element={
-                <ProtectedRoute allowedRoles={["STAFF"]}>
-                  <StaffDashboardWrapper />
-                </ProtectedRoute>
-              }
-            />
+        {/* ---------------- Manager Routes ---------------- */}
+        <Route
+          path="/manager/*"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
 
-            {/* ---------------- Catch-all ---------------- */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+        {/* ---------------- Staff Routes ---------------- */}
+        <Route
+          path="/staff/*"
+          element={
+            <ProtectedRoute allowedRoles={["STAFF"]}>
+              <StaffDashboardWrapper />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------------- Catch-all ---------------- */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </TooltipProvider>
+  );
+};
 
 export default App;

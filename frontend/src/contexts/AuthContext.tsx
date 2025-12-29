@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.tsx
 import { authService } from '@/services/authService';
 import type { LoginCredentials, SuperAdminSetup, User, UserRole } from '@/types/auth';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
@@ -30,18 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(storedUser);
-        
+
         // Validate token with backend
         const validUser = await authService.getCurrentUser();
         if (validUser) {
           setUser(validUser);
         } else {
-          // Token invalid, clear state
           setToken(null);
           setUser(null);
         }
       }
-      
+
       setIsLoading(false);
     };
 
@@ -72,11 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const hasRole = useCallback((roles: UserRole | UserRole[]): boolean => {
-    if (!user) return false;
-    const roleArray = Array.isArray(roles) ? roles : [roles];
-    return roleArray.includes(user.role);
-  }, [user]);
+  const hasRole = useCallback(
+    (roles: UserRole | UserRole[]): boolean => {
+      if (!user) return false;
+      const roleArray = Array.isArray(roles) ? roles : [roles];
+      return roleArray.includes(user.role);
+    },
+    [user]
+  );
 
   const value: AuthContextType = {
     user,
@@ -90,11 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasRole,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {
