@@ -1,6 +1,6 @@
 // sales.controller.js
 import colors from "colors";
-import prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 
 // ---------- Error Handler ----------
 const handlePrismaError = (res, error, operation) => {
@@ -23,142 +23,105 @@ const handlePrismaError = (res, error, operation) => {
 // POST /api/sales → Create Sale + Auto Stock Update + Alerts
 // ---------------------------------------------------------
 export const createSale = async (req, res) => {
-  const { productId, quantitySold, saleDate, unitPriceSold, notes } = req.body;
+  const { items, paymentMethod } = req.body;
 
-  if (!productId || quantitySold == null || unitPriceSold == null) {
-    return res.status(400).json({
-      message: "Product ID, quantity sold, and unit price are required.",
-    });
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: "items array is required and cannot be empty." });
   }
 
-  const qty = parseInt(quantitySold, 10);
-  const price = parseFloat(unitPriceSold);
-  const pId = parseInt(productId, 10);
+  const parsedItems = items.map((it) => ({
+    productId: parseInt(it.productId, 10),
+    quantity: parseInt(it.quantity, 10),
+    unitPrice: parseFloat(it.unitPrice),
+  }));
 
-  if (Number.isNaN(qty) || Number.isNaN(price) || Number.isNaN(pId)) {
-    return res
-      .status(400)
-      .json({ message: "productId, quantitySold and unitPriceSold must be numbers." });
-  }
-
-  if (qty <= 0) {
-    return res
-      .status(400)
-      .json({ message: "Quantity sold must be a positive number." });
+  for (const it of parsedItems) {
+    if (Number.isNaN(it.productId) || Number.isNaN(it.quantity) || Number.isNaN(it.unitPrice)) {
+      return res.status(400).json({ message: "productId, quantity and unitPrice must be valid numbers for all items." });
+    }
+    if (it.quantity <= 0) return res.status(400).json({ message: "Quantities must be positive." });
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate product
-      const product = await tx.product.findUnique({
-        where: { id: pId },
-        select: {
-          currentStock: true,
-          name: true,
-          reorderPoint: true,
-          overStockLimit: true,
-        },
-      });
+      const productIds = [...new Set(parsedItems.map((i) => i.productId))];
 
-      if (!product) throw new Error("ProductNotFound");
-      if (product.currentStock < qty) throw new Error("InsufficientStock");
+      const products = await tx.product.findMany({ where: { id: { in: productIds } } });
 
-      // 2. Reduce stock
-      await tx.product.update({
-        where: { id: pId },
-        data: { currentStock: { decrement: qty } },
-      });
+      if (products.length !== productIds.length) throw new Error("ProductNotFound");
 
-      // 3. Re-fetch for updated values
-      const updatedProduct = await tx.product.findUnique({
-        where: { id: pId },
-        select: {
-          name: true,
-          currentStock: true,
-          reorderPoint: true,
-          overStockLimit: true,
-        },
-      });
-
-      // ---------- AUTO ALERTS ----------
-      if (
-        updatedProduct.reorderPoint !== null &&
-        updatedProduct.currentStock <= updatedProduct.reorderPoint
-      ) {
-        await tx.alert.create({
-          data: {
-            productId: pId,
-            type: "LOW_STOCK",
-            message: `Low stock alert for ${updatedProduct.name}. Current stock: ${updatedProduct.currentStock}`,
-            isRead: false,
-          },
-        });
+      // Check stock availability
+      for (const it of parsedItems) {
+        const p = products.find((p) => p.id === it.productId);
+        if (!p) throw new Error("ProductNotFound");
+        if (p.currentStock < it.quantity) {
+          const err = new Error("InsufficientStock");
+          err.product = p;
+          throw err;
+        }
       }
 
-      if (
-        updatedProduct.overStockLimit !== null &&
-        updatedProduct.currentStock >= updatedProduct.overStockLimit
-      ) {
-        await tx.alert.create({
-          data: {
-            productId: pId,
-            type: "OVERSTOCK",
-            message: `Overstock alert for ${updatedProduct.name}. Current stock: ${updatedProduct.currentStock}`,
-            isRead: false,
-          },
-        });
+      // Decrement stock for each product
+      for (const it of parsedItems) {
+        await tx.product.update({ where: { id: it.productId }, data: { currentStock: { decrement: it.quantity } } });
       }
 
-      // 4. Create sale
-      const newSale = await tx.sale.create({
+      // Calculate totals and create sale with items
+      const totalAmount = parsedItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+
+      const sale = await tx.sale.create({
         data: {
-          productId: pId,
-          quantitySold: qty,
-          unitPriceSold: price,
-          totalSaleAmount: qty * price,
-          saleDate: saleDate ? new Date(saleDate) : new Date(),
-          notes: notes || null,
+          totalAmount,
+          paymentMethod: paymentMethod || "CASH",
           userId: req.user.id,
+          items: {
+            create: parsedItems.map((it) => ({
+              productId: it.productId,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              total: it.quantity * it.unitPrice,
+            })),
+          },
         },
+        include: { items: true },
       });
 
-      // 5. Record inventory movement
-      await tx.inventoryMovement.create({
-        data: {
-          productId: pId,
-          type: "SALE",
-          quantity: -qty,
-          description: `Sale recorded. Inventory reduced by ${qty}.`,
-          timestamp: newSale.saleDate,
-          userId: req.user.id,
-        },
-      });
+      // Create inventory movements and low-stock alerts
+      for (const it of parsedItems) {
+        await tx.inventoryMovement.create({
+          data: {
+            productId: it.productId,
+            type: "SALE",
+            quantity: -it.quantity,
+            userId: req.user.id,
+          },
+        });
 
-      return newSale;
+        // Re-fetch product to read updated stock
+        const updated = await tx.product.findUnique({ where: { id: it.productId }, select: { name: true, currentStock: true, lowStockThreshold: true } });
+        if (updated.lowStockThreshold !== null && updated.currentStock <= updated.lowStockThreshold) {
+          await tx.alert.create({
+            data: {
+              productId: it.productId,
+              type: "LOW_STOCK",
+              message: `Low stock for ${updated.name}. Current: ${updated.currentStock}`,
+            },
+          });
+        }
+      }
+
+      return sale;
     });
 
     return res.status(201).json(result);
   } catch (error) {
     if (error.message === "ProductNotFound") {
-      return res.status(404).json({ message: "Product not found." });
+      return res.status(404).json({ message: "One or more products not found." });
     }
 
     if (error.message === "InsufficientStock") {
-      // try to fetch the product name/stock for a better message (non-transactional)
-      try {
-        const product = await prisma.product.findUnique({
-          where: { id: productId ? parseInt(productId, 10) : undefined },
-        });
-
-        return res.status(400).json({
-          message: `Insufficient stock for ${product?.name}. Available: ${product?.currentStock}, Requested: ${qty}`,
-        });
-      } catch (fetchError) {
-        // If fetching product fails for some reason, return a generic insufficient stock message
-        return res.status(400).json({
-          message: `Insufficient stock. Requested: ${qty}`,
-        });
-      }
+      const p = error.product;
+      return res.status(400).json({ message: `Insufficient stock for ${p?.name || 'product'}. Available: ${p?.currentStock}, Requested: ${p?.quantity || 'n'}` });
     }
 
     return handlePrismaError(res, error, "recording sale");
@@ -178,27 +141,29 @@ export const getSales = async (req, res) => {
   let where = {};
 
   if (startDate || endDate) {
-    where.saleDate = {};
-    if (startDate) where.saleDate.gte = new Date(startDate);
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
 
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      where.saleDate.lte = end;
+      where.createdAt.lte = end;
     }
   }
 
-  if (productId) where.productId = parseInt(productId, 10);
+  if (productId) {
+    where.items = { some: { productId: parseInt(productId, 10) } };
+  }
 
   try {
     const [sales, totalCount] = await prisma.$transaction([
       prisma.sale.findMany({
         where,
         include: {
-          product: { select: { name: true, sku: true, unitPrice: true } },
+          items: { include: { product: { select: { name: true, sku: true, unitPrice: true } } } },
           user: { select: { name: true } },
         },
-        orderBy: { saleDate: "desc" },
+        orderBy: { createdAt: "desc" },
         skip,
         take,
       }),
@@ -227,7 +192,7 @@ export const getSaleById = async (req, res) => {
     const sale = await prisma.sale.findUnique({
       where: { id: parseInt(id, 10) },
       include: {
-        product: { select: { name: true, sku: true, unitPrice: true } },
+        items: { include: { product: { select: { name: true, sku: true, unitPrice: true } } } },
         user: { select: { name: true } },
       },
     });
@@ -274,28 +239,27 @@ export const deleteSale = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findUnique({
         where: { id: parseInt(id, 10) },
-        select: { productId: true, quantitySold: true },
+        include: { items: true },
       });
 
       if (!sale) throw new Error("SaleNotFound");
 
-      await tx.product.update({
-        where: { id: sale.productId },
-        data: { currentStock: { increment: sale.quantitySold } },
-      });
+      // Restore stock for each item
+      for (const it of sale.items) {
+        await tx.product.update({ where: { id: it.productId }, data: { currentStock: { increment: it.quantity } } });
 
+        await tx.inventoryMovement.create({
+          data: {
+            productId: it.productId,
+            type: "SALE_REVERSAL",
+            quantity: it.quantity,
+            userId: req.user.id,
+          },
+        });
+      }
+
+      // Delete sale and child items (cascade expected, but ensure deletion)
       await tx.sale.delete({ where: { id: parseInt(id, 10) } });
-
-      await tx.inventoryMovement.create({
-        data: {
-          productId: sale.productId,
-          type: "SALE_REVERSAL",
-          quantity: sale.quantitySold,
-          description: `Sale ID ${id} deleted; inventory restored.`,
-          timestamp: new Date(),
-          userId: req.user.id,
-        },
-      });
     });
 
     return res.status(204).send();
@@ -314,33 +278,38 @@ export const deleteSale = async (req, res) => {
 export const getSalesForForecast = async (req, res) => {
   const { startDate, endDate, productId } = req.query;
 
-  let where = {};
-
-  if (startDate || endDate) {
-    where.saleDate = {};
-    if (startDate) where.saleDate.gte = new Date(startDate);
-
-    if (endDate) {
-      let end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      where.saleDate.lte = end;
-    }
+  const saleDateFilter = {};
+  if (startDate) saleDateFilter.gte = new Date(startDate);
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    saleDateFilter.lte = end;
   }
 
-  if (productId) where.productId = parseInt(productId, 10);
-
   try {
-    const data = await prisma.sale.groupBy({
-      by: ["saleDate", "productId"],
+    const where = {
+      ...(Object.keys(saleDateFilter).length ? { sale: { createdAt: saleDateFilter } } : {}),
+      ...(productId ? { productId: parseInt(productId, 10) } : {}),
+    };
+
+    const items = await prisma.saleItem.findMany({
       where,
-      _sum: {
-        quantitySold: true,
-        totalSaleAmount: true,
-      },
-      orderBy: { saleDate: "asc" },
+      include: { sale: { select: { createdAt: true } } },
+      orderBy: { sale: { createdAt: "asc" } },
     });
 
-    return res.status(200).json(data);
+    // Group by date and productId
+    const grouped = {};
+
+    for (const it of items) {
+      const date = new Date(it.sale.createdAt).toISOString().slice(0, 10); // YYYY-MM-DD
+      const key = `${date}_${it.productId}`;
+      if (!grouped[key]) grouped[key] = { date, productId: it.productId, quantity: 0, revenue: 0 };
+      grouped[key].quantity += it.quantity;
+      grouped[key].revenue += it.total;
+    }
+
+    return res.status(200).json(Object.values(grouped));
   } catch (error) {
     return handlePrismaError(res, error, "fetching forecast data");
   }

@@ -1,112 +1,131 @@
-// server.js - FINAL WORKING VERSION
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-
+// server.js - FINAL FIXED VERSION (CORS + ROUTES WORKING)
+import cors from "cors";
+import dotenv from "dotenv";
+import express from "express";
 dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+/* ===============================
+   MIDDLEWARE
+================================ */
+
+// ✅ Correct CORS for credentials
+app.use(
+  cors({
+    origin: "http://localhost:5173", // frontend
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json());
 
-console.log('🚀 AI Inventory Forecasting API Starting...\n');
+console.log("🚀 AI Inventory Forecasting API Starting...\n");
 
-// Load routes with error handling
+/* ===============================
+   ROUTE LOADER
+================================ */
+
 const loadRoute = async (path, name) => {
   try {
     const module = await import(path);
     app.use(`/api/${name}`, module.default);
-    console.log(`✅ ${name} routes: /api/${name}/*`);
-    return true;
+    console.log(`✅ ${name || "root"} routes loaded at /api/${name}`);
   } catch (error) {
-    console.log(`❌ ${name} routes failed: ${error.message}`);
-    
-    // Create fallback
+    console.error(`❌ Failed to load ${name} routes`, error.message);
+
     const router = express.Router();
-    router.get('/test', (req, res) => {
-      res.json({ 
-        message: `${name} routes - Module failed to load`,
-        error: error.message 
+    router.get("/test", (req, res) => {
+      res.json({
+        success: false,
+        message: `${name} routes failed to load`,
+        error: error.message,
       });
     });
     app.use(`/api/${name}`, router);
-    return false;
   }
 };
 
-// Load essential routes first
-await loadRoute('./routes/admin.js', 'admin');
-await loadRoute('./routes/authRoutes.js', 'auth');
+/* ===============================
+   LOAD ROUTES
+================================ */
 
-// Try to load other routes
-await loadRoute('./routes/apiRoutes.js', '');
-await loadRoute('./routes/userRoutes.js', 'users');
-await loadRoute('./routes/productRoutes.js', 'products');
-await loadRoute('./routes/salesRoutes.js', 'sales');
-await loadRoute('./routes/alertRoutes.js', 'alerts');
-await loadRoute('./routes/inventoryRoutes.js', 'inventory');
-await loadRoute('./routes/forecastRoutes.js', 'forecasts');
-await loadRoute('./routes/categoryRoutes.js', 'categories');
+await loadRoute("./routes/authRoutes.js", "auth");
+await loadRoute("./routes/admin.js", "admin");
+await loadRoute("./routes/userRoutes.js", "users");
+await loadRoute("./routes/productRoutes.js", "products");
+await loadRoute("./routes/salesRoutes.js", "sales");
+await loadRoute("./routes/syncRoutes.js", "sync");
+await loadRoute("./routes/alertRoutes.js", "alerts");
+await loadRoute("./routes/inventoryRoutes.js", "inventory");
+await loadRoute("./routes/forecastRoutes.js", "forecast");
+await loadRoute("./routes/categoryRoutes.js", "categories");
+await loadRoute("./routes/dashboardRoutes.js", "dashboard");
+await loadRoute("./routes/mpesaRoutes.js", "mpesa");
 
-// Direct login endpoint for testing
-app.post('/api/test-login', (req, res) => {
+/* ===============================
+   TEST / HEALTH ROUTES
+================================ */
+
+// Test login (debug only)
+app.post("/api/test-login", (req, res) => {
   const { email, password } = req.body;
-  
+
   if (!email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Email and password required' 
+    return res.status(400).json({
+      success: false,
+      message: "Email and password required",
     });
   }
-  
+
   res.json({
     success: true,
-    message: 'Test login successful',
-    token: 'test-jwt-token-' + Date.now(),
+    message: "Test login successful",
+    token: "test-token-" + Date.now(),
     user: {
-      id: 1,
-      name: 'Test Admin',
-      email: email,
-      role: 'ADMIN'
-    }
+      id: "1",
+      name: "Test Admin",
+      email,
+      role: "ADMIN",
+    },
   });
 });
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
     timestamp: new Date().toISOString(),
-    message: 'Server is running',
-    endpoints: [
-      '/api/admin/*',
-      '/api/auth/*',
-      '/api/test-login (POST)',
-      '/health'
-    ]
+    message: "Server running correctly",
   });
 });
 
 // Root
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'AI Inventory Forecasting API',
-    version: '1.0.0',
-    status: 'running',
-    testLogin: 'POST /api/test-login with {email, password}',
-    adminTest: 'GET /api/admin/test'
+app.get("/", (req, res) => {
+  res.json({
+    name: "AI Inventory Forecasting API",
+    version: "1.0.0",
+    status: "running",
   });
 });
 
+/* ===============================
+   START SERVER
+================================ */
+
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`\n🎉 Server started on http://localhost:${PORT}`);
-  console.log('\n🔗 Test endpoints:');
-  console.log('   curl http://localhost:' + PORT + '/health');
-  console.log('   curl http://localhost:' + PORT + '/');
-  console.log('   curl http://localhost:' + PORT + '/api/admin/test');
-  console.log('   curl -X POST http://localhost:' + PORT + '/api/test-login -H "Content-Type: application/json" -d \'{"email":"test@test.com","password":"test"}\'');
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`\n🎉 Server running on http://localhost:${PORT}`);
+    console.log("🔗 Available endpoints:");
+    console.log("   GET  /health");
+    console.log("   POST /api/auth/login");
+    console.log("   POST /api/auth/register");
+    console.log("   GET  /api/auth/users");
+  });
+}
+
+export default app;

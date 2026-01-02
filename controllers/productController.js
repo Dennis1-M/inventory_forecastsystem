@@ -1,5 +1,5 @@
 import colors from "colors";
-import prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 /**
  * Create product
  * - Validates required fields (name, sku, unitPrice, categoryId)
@@ -43,7 +43,7 @@ export const createProduct = async (req, res) => {
       data: {
         name,
         sku,
-        description: description || null,
+        ...(description !== undefined && { description: description || null }),
         unitPrice: Number(unitPrice),
         categoryId: Number(categoryId),
         supplierId: supplierId ? Number(supplierId) : null,

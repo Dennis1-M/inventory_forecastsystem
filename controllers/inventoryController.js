@@ -1,6 +1,6 @@
 // backend/controllers/inventoryController.js
 import colors from "colors";
-import  prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 
 /**
  * HELPERS
@@ -209,5 +209,29 @@ export const getLowStockAlerts = async (req, res) => {
   } catch (error) {
     console.error("Error fetching low stock alerts:", error);
     res.status(500).json({ message: "Failed to fetch alerts.", error: error.message });
+  }
+};
+
+
+/**
+ * GET INVENTORY SUMMARY
+ * GET /api/inventory/summary
+ */
+export const getInventorySummary = async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      select: { id: true, currentStock: true, lowStockThreshold: true },
+    });
+
+    const totalProducts = products.length;
+    const totalInventory = products.reduce((sum, p) => sum + (p.currentStock || 0), 0);
+    const lowStockItems = products.filter(
+      p => p.lowStockThreshold != null && p.currentStock <= p.lowStockThreshold
+    ).length;
+
+    res.status(200).json({ totalProducts, totalInventory, lowStockItems });
+  } catch (error) {
+    console.error("Error fetching inventory summary:", error);
+    res.status(500).json({ message: "Failed to fetch inventory summary", error: error.message });
   }
 };
