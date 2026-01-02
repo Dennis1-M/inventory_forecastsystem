@@ -58,6 +58,7 @@ await loadRoute("./routes/userRoutes.js", "users");
 await loadRoute("./routes/productRoutes.js", "products");
 await loadRoute("./routes/salesRoutes.js", "sales");
 await loadRoute("./routes/syncRoutes.js", "sync");
+await loadRoute("./routes/purchaseOrderRoutes.js", "purchase-orders");
 await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
