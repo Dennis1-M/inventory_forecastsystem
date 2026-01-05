@@ -350,4 +350,74 @@ router.get('/reports/inventory', async (req, res) => {
   }
 });
 
+// Get gross margin report
+// Optional query params: from (ISO date), to (ISO date)
+router.get('/reports/gross-margin', async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    const where = {};
+    if (from || to) {
+      where.sale = {};
+      if (from) where.sale.createdAt = { ...(where.sale.createdAt || {}), gte: new Date(from) };
+      if (to) where.sale.createdAt = { ...(where.sale.createdAt || {}), lte: new Date(to) };
+    }
+
+    // Fetch sale items in range with product and category
+    const items = await prisma.saleItem.findMany({
+      where,
+      include: { product: { include: { category: true } }, sale: true }
+    });
+
+    const productMap = new Map();
+    let totalRevenue = 0;
+    let totalCost = 0;
+
+    for (const it of items) {
+      const pid = it.productId;
+      const prod = it.product;
+      const revenue = (it.unitPrice || 0) * (it.quantity || 0);
+      const cost = (prod?.costPrice || 0) * (it.quantity || 0);
+
+      totalRevenue += revenue;
+      totalCost += cost;
+
+      if (!productMap.has(pid)) {
+        productMap.set(pid, { productId: pid, sku: prod?.sku, name: prod?.name, category: prod?.category?.name || null, revenue: 0, cost: 0, qty: 0 });
+      }
+
+      const agg = productMap.get(pid);
+      agg.revenue += revenue;
+      agg.cost += cost;
+      agg.qty += it.quantity;
+    }
+
+    const productMargins = Array.from(productMap.values()).map((p) => ({
+      ...p,
+      grossProfit: p.revenue - p.cost,
+      grossMarginPercent: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0
+    }));
+
+    // Aggregate by category
+    const catMap = new Map();
+    for (const p of productMargins) {
+      const key = p.category || 'Uncategorized';
+      if (!catMap.has(key)) catMap.set(key, { category: key, revenue: 0, cost: 0, grossProfit: 0 });
+      const c = catMap.get(key);
+      c.revenue += p.revenue;
+      c.cost += p.cost;
+      c.grossProfit += p.grossProfit;
+    }
+
+    const categoryMargins = Array.from(catMap.values()).map((c) => ({
+      ...c,
+      grossMarginPercent: c.revenue > 0 ? (c.grossProfit / c.revenue) * 100 : 0
+    }));
+
+    res.json({ success: true, data: { productMargins, categoryMargins, totalRevenue, totalCost, totalGrossProfit: totalRevenue - totalCost } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

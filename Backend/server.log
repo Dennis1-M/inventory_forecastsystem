@@ -1,0 +1,54 @@
+nohup: ignoring input
+[dotenv@17.2.3] injecting env (14) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+🚀 AI Inventory Forecasting API Starting...
+
+✅ auth routes loaded at /api/auth
+✅ admin routes loaded at /api/admin
+✅ users routes loaded at /api/users
+✅ products routes loaded at /api/products
+✅ sales routes loaded at /api/sales
+✅ alerts routes loaded at /api/alerts
+✅ inventory routes loaded at /api/inventory
+✅ forecast routes loaded at /api/forecast
+✅ categories routes loaded at /api/categories
+✅ dashboard routes loaded at /api/dashboard
+✅ mpesa routes loaded at /api/mpesa
+
+🎉 Server running on http://localhost:5001
+🔗 Available endpoints:
+   GET  /health
+   POST /api/auth/login
+   POST /api/auth/register
+   GET  /api/auth/users
+[31mPrisma Error creating product:[39m PrismaClientValidationError: 
+Invalid `prisma.product.create()` invocation:
+
+{
+  data: {
+    name: "Test Product A",
+    sku: "TP-A-001",
+    description: null,
+    ~~~~~~~~~~~
+    unitPrice: 5.25,
+    categoryId: 1,
+    supplierId: null,
+    lowStockThreshold: 2,
+    currentStock: 0,
+?   id?: Int,
+?   saleItems?: SaleItemUncheckedCreateNestedManyWithoutProductInput,
+?   movements?: InventoryMovementUncheckedCreateNestedManyWithoutProductInput,
+?   alerts?: AlertUncheckedCreateNestedManyWithoutProductInput,
+?   forecastRuns?: ForecastRunUncheckedCreateNestedManyWithoutProductInput
+  }
+}
+
+Unknown argument `description`. Available options are marked with ?.
+    at Nn (D:\FINALPROJECT2\Backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (D:\FINALPROJECT2\Backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (D:\FINALPROJECT2\Backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\FINALPROJECT2\Backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\FINALPROJECT2\Backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async createProduct (file:///D:/FINALPROJECT2/Backend/controllers/productController.js:42:24) {
+  clientVersion: '6.19.1'
+}

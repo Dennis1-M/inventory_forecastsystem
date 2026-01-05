@@ -1,5 +1,10 @@
+// controllers/forecastController.js
+// -------------------------------------------------------
+// Forecast Controller (FIXED: uses SaleItem instead of Sale)
+// -------------------------------------------------------
+
 import colors from "colors";
-import  prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 
 const FASTAPI_URL = process.env.FASTAPI_URL || "http://127.0.0.1:5002";
 
@@ -8,12 +13,14 @@ const FASTAPI_URL = process.env.FASTAPI_URL || "http://127.0.0.1:5002";
 // -------------------------------------------------------
 const handleForecastingError = (res, error, operation) => {
     console.error(colors.red(`Forecasting Error during ${operation}:`), error);
+
     if (error.code === "ECONNREFUSED" || error.message?.includes("ECONNREFUSED")) {
         return res.status(503).json({
             message: "Forecasting service is unavailable. Ensure FastAPI is running.",
             service_url: FASTAPI_URL,
         });
     }
+
     return res.status(500).json({
         message: `Failed to ${operation}.`,
         error: error.message,
@@ -21,30 +28,41 @@ const handleForecastingError = (res, error, operation) => {
 };
 
 // -------------------------------------------------------
-// Internal: Prepare Historical Sales Data
+// Internal: Prepare Historical Sales Data (FIXED)
 // -------------------------------------------------------
 const getHistoricalData = async (productId) => {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
 
-    const salesData = await prisma.sale.groupBy({
-        by: ["saleDate"],
+    const saleItems = await prisma.saleItem.findMany({
         where: {
             productId,
-            saleDate: { gte: sixMonthsAgo },
+            sale: {
+                createdAt: { gte: sixMonthsAgo },
+            },
         },
-        _sum: { quantitySold: true },
-        orderBy: { saleDate: "asc" },
+        select: {
+            quantity: true,
+            sale: {
+                select: { createdAt: true },
+            },
+        },
     });
 
-    return salesData.map((item) => ({
-        date: item.saleDate.toISOString().split("T")[0],
-        quantity: item._sum.quantitySold || 0,
-    }));
+    const dailyTotals = {};
+
+    saleItems.forEach(({ quantity, sale }) => {
+        const date = sale.createdAt.toISOString().split("T")[0];
+        dailyTotals[date] = (dailyTotals[date] || 0) + quantity;
+    });
+
+    return Object.entries(dailyTotals)
+        .map(([date, quantity]) => ({ date, quantity }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
 };
 
 // -------------------------------------------------------
-// 1. RUN FORECAST (called manually or auto-run by route)
+// 1. RUN FORECAST
 // -------------------------------------------------------
 export const runForecastForProduct = async (req, res) => {
     const { productId, horizon = 14 } = req.body;
@@ -62,18 +80,14 @@ export const runForecastForProduct = async (req, res) => {
             });
         }
 
-        const apiUrl = `${FASTAPI_URL}/forecast`;
-
-        const payload = {
-            product_id: pId,
-            periods: Number(horizon),
-            historical_data: historical,
-        };
-
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${FASTAPI_URL}/forecast`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({
+                product_id: pId,
+                periods: Number(horizon),
+                historical_data: historical,
+            }),
         });
 
         if (!response.ok) {
@@ -86,7 +100,6 @@ export const runForecastForProduct = async (req, res) => {
 
         const forecastData = await response.json();
 
-        // Save forecast to DB
         const saved = await prisma.forecastRun.create({
             data: {
                 productId: pId,
@@ -100,20 +113,21 @@ export const runForecastForProduct = async (req, res) => {
             message: "Forecast generated & saved.",
             run: saved,
         });
+
     } catch (err) {
         return handleForecastingError(res, err, "runForecastForProduct");
     }
 };
 
 // -------------------------------------------------------
-// ADD MISSING FUNCTION FOR ROUTES
+// Alias for routes
 // -------------------------------------------------------
 export const generateForecast = async (req, res) => {
     return runForecastForProduct(req, res);
 };
 
 // -------------------------------------------------------
-// 2. SAVE FORECAST (manual override or ML push)
+// 2. SAVE FORECAST
 // -------------------------------------------------------
 export const saveForecast = async (req, res) => {
     const { productId, horizon = 14, forecast } = req.body;
@@ -132,13 +146,14 @@ export const saveForecast = async (req, res) => {
         });
 
         return res.json({ ok: true, saved });
+
     } catch (err) {
         return handleForecastingError(res, err, "saveForecast");
     }
 };
 
 // -------------------------------------------------------
-// 3. GET HISTORY OF FORECASTS FOR PRODUCT
+// 3. GET FORECAST HISTORY
 // -------------------------------------------------------
 export const getForecastHistory = async (req, res) => {
     const productId = Number(req.params.productId);
@@ -152,6 +167,7 @@ export const getForecastHistory = async (req, res) => {
         });
 
         return res.json({ ok: true, runs });
+
     } catch (err) {
         return handleForecastingError(res, err, "getForecastHistory");
     }
@@ -161,7 +177,7 @@ export const getForecastHistory = async (req, res) => {
 // 4. GET LATEST FORECAST
 // -------------------------------------------------------
 export const getLatestForecast = async (productId) => {
-    return await prisma.forecastRun.findFirst({
+    return prisma.forecastRun.findFirst({
         where: { productId },
         orderBy: { createdAt: "desc" },
     });

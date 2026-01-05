@@ -1,5 +1,5 @@
 import colors from 'colors';
-import  prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 
 // --- Helper for Prisma errors ---
 const handlePrismaError = (res, error, operation) => {
@@ -16,7 +16,7 @@ const handlePrismaError = (res, error, operation) => {
 
 // --- Create ---
 export const createCategory = async (req, res) => {
-    const { name, description } = req.body;
+    const { name } = req.body;
 
     if (!name) {
         return res.status(400).json({ message: 'Category name is required.' });
@@ -24,13 +24,19 @@ export const createCategory = async (req, res) => {
 
     try {
         const newCategory = await prisma.category.create({
-            data: {
-                name,
-                description: description || 'No description provided.',
-            },
+            data: { name },
         });
         res.status(201).json(newCategory);
     } catch (error) {
+        // If a duplicate name exists, return the existing category instead of failing the whole integration setup
+        if (error && error.code === 'P2002') {
+            try {
+                const existing = await prisma.category.findUnique({ where: { name } });
+                if (existing) return res.status(200).json(existing);
+            } catch (e) {
+                // fall through to handler below
+            }
+        }
         handlePrismaError(res, error, 'creating category');
     }
 };
@@ -69,18 +75,18 @@ export const getCategoryById = async (req, res) => {
 // --- Update ---
 export const updateCategory = async (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name } = req.body;
 
-    if (!name && !description) {
+    if (!name) {
         return res.status(400).json({
-            message: 'Provide at least one field (name or description) to update.',
+            message: 'Provide name to update.',
         });
     }
 
     try {
         const updatedCategory = await prisma.category.update({
             where: { id: parseInt(id) },
-            data: { name, description },
+            data: { name },
         });
         res.status(200).json(updatedCategory);
     } catch (error) {

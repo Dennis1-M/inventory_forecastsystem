@@ -4,10 +4,11 @@
 // --------------------------------------------------
 
 import { prisma } from "../prismaClient.js";
+import { emitAlert } from "../sockets/index.js";
 import {
-  evaluateExpiryRisk,
-  evaluateOverstockRisk,
-  evaluateStockoutRisk
+    evaluateExpiryRisk,
+    evaluateOverstockRisk,
+    evaluateStockoutRisk
 } from "./riskEvaluator.js"; // all risk functions imported from riskEvaluator.js
 
 // --------------------------------------------------
@@ -93,13 +94,14 @@ async function createOrUpdateAlert(productId, type, evaluation, existingAlerts) 
   });
 
   if (!exists) {
-    await prisma.alert.create({
+    const alert = await prisma.alert.create({
       data: {
         productId,
         type,
         message: alertMessage
       }
     });
+    try { emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt }); } catch (e) { console.warn('Emit alert failed', e.message); }
   } else {
     // Update existing alert
     await prisma.alert.update({

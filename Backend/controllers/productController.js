@@ -1,5 +1,5 @@
 import colors from "colors";
-import prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 /**
  * Create product
  * - Validates required fields (name, sku, unitPrice, categoryId)
@@ -43,7 +43,7 @@ export const createProduct = async (req, res) => {
       data: {
         name,
         sku,
-        description: description || null,
+        ...(description !== undefined && { description: description || null }),
         unitPrice: Number(unitPrice),
         categoryId: Number(categoryId),
         supplierId: supplierId ? Number(supplierId) : null,
@@ -56,6 +56,16 @@ export const createProduct = async (req, res) => {
     res.status(201).json({ message: "Product created.", product: newProduct });
   } catch (error) {
     console.error(colors.red("Prisma Error creating product:"), error);
+    // If product already exists (P2002), return the existing product for idempotent test setup
+    if (error && error.code === 'P2002') {
+      try {
+        const existing = await prisma.product.findUnique({ where: { name } });
+        if (existing) return res.status(200).json({ message: 'Product already exists.', product: existing });
+      } catch (e) {
+        // fall through to generic error
+      }
+    }
+
     res.status(500).json({ message: "Failed to create product.", error: error.message });
   }
 };

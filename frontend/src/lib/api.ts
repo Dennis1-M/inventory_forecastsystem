@@ -99,6 +99,47 @@ export const inventoryAPI = {
     return response.data;
   },
 
+  // Purchase Orders
+  getPurchaseOrders: async () => {
+    const response = await api.get('/purchase-orders');
+    return response.data;
+  },
+  getPurchaseOrder: async (id: number) => {
+    const response = await api.get(`/purchase-orders/${id}`);
+    return response.data;
+  },
+  createPurchaseOrder: async (payload: any) => {
+    const response = await api.post('/purchase-orders', payload);
+    return response.data;
+  },
+  receivePurchaseOrder: async (id: number, items: any[]) => {
+    const response = await api.post(`/purchase-orders/${id}/receive`, { items });
+    return response.data;
+  },
+
+  // Cycle counts
+  postCycleCount: async (payload: any) => {
+    const response = await api.post('/inventory/cycle-counts', payload);
+    return response.data;
+  },
+  getCycleCounts: async () => {
+    const response = await api.get('/inventory/cycle-counts');
+    return response.data;
+  },
+  getCycleCount: async (id: number) => {
+    const response = await api.get(`/inventory/cycle-counts/${id}`);
+    return response.data;
+  },
+
+  // Reports
+  getGrossMarginReport: async (from?: string, to?: string) => {
+    const params: any = {};
+    if (from) params.from = from;
+    if (to) params.to = to;
+    const response = await api.get('/manager/reports/gross-margin', { params });
+    return response.data;
+  },
+
   getAdminStats: async () => {
     const response = await api.get("/admin/stats");
     return response.data;

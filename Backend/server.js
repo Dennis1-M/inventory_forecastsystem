@@ -2,7 +2,6 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import mpesaRoutes from "./routes/mpesaRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -58,8 +57,11 @@ await loadRoute("./routes/admin.js", "admin");
 await loadRoute("./routes/userRoutes.js", "users");
 await loadRoute("./routes/productRoutes.js", "products");
 await loadRoute("./routes/salesRoutes.js", "sales");
+await loadRoute("./routes/syncRoutes.js", "sync");
+await loadRoute("./routes/purchaseOrderRoutes.js", "purchase-orders");
 await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
+await loadRoute("./routes/manager.js", "manager");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
@@ -114,14 +116,25 @@ app.get("/", (req, res) => {
 /* ===============================
    START SERVER
 ================================ */
+import { createServer } from 'http';
+import { initSockets } from './sockets/index.js';
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`\n🎉 Server running on http://localhost:${PORT}`);
-  console.log("🔗 Available endpoints:");
-  console.log("   GET  /health");
-  console.log("   POST /api/auth/login");
-  console.log("   POST /api/auth/register");
-  console.log("   GET  /api/auth/users");
-});
+if (process.env.NODE_ENV !== 'test') {
+  const server = createServer(app);
+  // Initialize socket.io
+  initSockets(server);
+
+  server.listen(PORT, () => {
+    console.log(`\n🎉 Server running on http://localhost:${PORT}`);
+    console.log("🔗 Available endpoints:");
+    console.log("   GET  /health");
+    console.log("   POST /api/auth/login");
+    console.log("   POST /api/auth/register");
+    console.log("   GET  /api/auth/users");
+    console.log('🔌 Socket.io server initialized');
+  });
+}
+
+export default app;

@@ -1,35 +1,34 @@
 // forecast/data/demandSeries.js
-// Responsible for converting raw sales data into a clean daily demand time series
-
 import { prisma } from "../../index.js";
 
 /**
  * Build daily demand series for a product
  * @param {number} productId
- * @param {number} daysBack - number of past days to consider
+ * @param {number} daysBack
  */
 export const getDailyDemandSeries = async (productId, daysBack = 60) => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - daysBack);
 
-  // Aggregate sales by date
-  const sales = await prisma.sale.groupBy({
-    by: ["saleDate"],
-    where: {
-      productId,
-      saleDate: { gte: startDate },
-    },
-    _sum: {
-      quantitySold: true,
-    },
-    orderBy: {
-      saleDate: "asc",
+  // Step 1: Aggregate quantities sold per sale
+  const saleItems = await prisma.saleItem.findMany({
+    where: { productId },
+    select: {
+      quantity: true,
+      sale: { select: { createdAt: true } },
     },
   });
 
-  // Normalize dates and quantities
-  return sales.map((s) => ({
-    date: new Date(s.saleDate).toISOString().split("T")[0],
-    demand: s._sum.quantitySold || 0,
-  }));
+  // Step 2: Aggregate by date
+  const dailyMap = {};
+  saleItems.forEach(({ quantity, sale }) => {
+    const date = sale.createdAt.toISOString().split("T")[0];
+    if (!dailyMap[date]) dailyMap[date] = 0;
+    dailyMap[date] += quantity;
+  });
+
+  // Step 3: Convert to sorted array
+  return Object.entries(dailyMap)
+    .map(([date, demand]) => ({ date, demand }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 };

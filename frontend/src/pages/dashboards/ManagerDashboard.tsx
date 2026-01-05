@@ -1,18 +1,20 @@
-import { Helmet } from 'react-helmet-async';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Package, 
-  TrendingUp, 
-  Users, 
-  AlertTriangle,
-  BarChart3,
-  ShoppingCart,
-  DollarSign,
-  Clock,
-  LogOut
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/hooks/useSocket';
+import {
+    AlertTriangle,
+    BarChart3,
+    Clock,
+    DollarSign,
+    LogOut,
+    Package,
+    ShoppingCart,
+    TrendingUp,
+    Users
+} from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import { toast } from 'sonner';
 
 const ManagerDashboard = () => {
   const { user, logout } = useAuth();
@@ -21,6 +23,13 @@ const ManagerDashboard = () => {
     await logout();
     // Optional: redirect to login page if needed
   };
+
+  // Socket listeners for live updates
+  useSocket((p) => {
+    toast(`Product updated: ${p.productId} stock ${p.currentStock}`)
+  }, (a) => {
+    toast(`${a.type}: ${a.message}`)
+  })
 
   return (
     <>
@@ -108,19 +117,22 @@ const ManagerDashboard = () => {
             <Card className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Active Staff
+                  Gross Margin (Latest)
                 </CardTitle>
-                <Users className="h-5 w-5 text-primary" />
+                <DollarSign className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">0</div>
-                <p className="text-xs text-muted-foreground mt-1">Currently on shift</p>
+                <div className="text-2xl font-bold text-foreground">KES 0</div>
+                <p className="text-xs text-muted-foreground mt-1">View detailed report</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <NotificationsPanel />
+            </div>
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -129,22 +141,10 @@ const ManagerDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <Package className="h-6 w-6" />
-                  <span>Manage Inventory</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <TrendingUp className="h-6 w-6" />
-                  <span>View Reports</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <Users className="h-6 w-6" />
-                  <span>Staff Management</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <ShoppingCart className="h-6 w-6" />
-                  <span>Sales History</span>
-                </Button>
+                <Link to="/admin/inventory"><Button variant="outline" className="h-20 flex flex-col gap-2"><Package className="h-6 w-6" /><span>Manage Inventory</span></Button></Link>
+                <Link to="/manager/reports/gross-margin"><Button variant="outline" className="h-20 flex flex-col gap-2"><TrendingUp className="h-6 w-6" /><span>Gross Margin</span></Button></Link>
+                <Link to="/manager/purchase-orders"><Button variant="outline" className="h-20 flex flex-col gap-2"><Users className="h-6 w-6" /><span>Purchase Orders</span></Button></Link>
+                <Link to="/manager/cycle-counts"><Button variant="outline" className="h-20 flex flex-col gap-2"><ShoppingCart className="h-6 w-6" /><span>Cycle Count</span></Button></Link>
               </CardContent>
             </Card>
           </div>

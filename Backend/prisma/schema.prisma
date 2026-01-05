@@ -48,6 +48,8 @@ model User {
 
   sales              Sale[]
   inventoryMovements InventoryMovement[]
+  purchaseOrdersCreated PurchaseOrder[] @relation("CreatedPOs")
+  cycleCounts         CycleCount[]
 }
 
 ////////////////////////////
@@ -64,13 +66,17 @@ model Supplier {
   id       Int       @id @default(autoincrement())
   name     String    @unique
   products Product[]
+  purchaseOrders PurchaseOrder[]
+  inventoryMovements InventoryMovement[]
 }
 
 model Product {
   id                Int    @id @default(autoincrement())
   sku               String @unique
   name              String @unique
+  description       String?
   unitPrice         Float
+  costPrice         Float?
   currentStock      Int    @default(0)
   lowStockThreshold Int    @default(10)
 
@@ -82,7 +88,10 @@ model Product {
 
   saleItems    SaleItem[]
   movements    InventoryMovement[]
+  alerts       Alert[]
+  purchaseOrderItems PurchaseOrderItem[]
   forecastRuns ForecastRun[]
+  cycleCountItems CycleCountItem[]
 }
 
 ////////////////////////////
@@ -122,16 +131,20 @@ model SaleItem {
 ////////////////////////////
 
 model InventoryMovement {
-  id        Int          @id @default(autoincrement())
-  type      MovementType
-  quantity  Int
-  createdAt DateTime     @default(now())
+  id         Int          @id @default(autoincrement())
+  type       MovementType
+  quantity   Int
+  costPrice  Float?
+  description String?
+  timestamp  DateTime     @default(now())
 
   productId Int
   userId    Int
+  supplierId Int?
 
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
 
   @@index([productId])
 }
@@ -148,3 +161,99 @@ model ForecastRun {
 
   product Product @relation(fields: [productId], references: [id])
 }
+
+////////////////////////////
+// PURCHASE ORDERS
+////////////////////////////
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id            Int                 @id @default(autoincrement())
+  supplierId    Int
+  status        PurchaseOrderStatus @default(DRAFT)
+  expectedDate  DateTime?
+  createdAt     DateTime            @default(now())
+  createdById   Int
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  createdBy User    @relation("CreatedPOs", fields: [createdById], references: [id])
+  items PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              Int    @id @default(autoincrement())
+  purchaseOrderId Int
+  productId       Int
+  quantityOrdered Int
+  quantityReceived Int   @default(0)
+  unitCost        Float
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+////////////////////////////
+// ALERTS
+////////////////////////////
+
+enum AlertType {
+  LOW_STOCK
+  OVERSTOCK
+  OTHER
+  OUT_OF_STOCK
+}
+
+model Alert {
+  id         Int       @id @default(autoincrement())
+  productId  Int?
+  type       AlertType
+  message    String
+  isResolved Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  product Product? @relation(fields: [productId], references: [id])
+}
+
+////////////////////////////
+// CYCLE COUNTS
+////////////////////////////
+
+model CycleCount {
+  id                  Int               @id @default(autoincrement())
+  createdById         Int
+  createdAt           DateTime          @default(now())
+  reason              String?           
+  totalShrinkageQty   Int               @default(0)
+  totalShrinkageValue Float             @default(0.0)
+
+  createdBy User @relation(fields: [createdById], references: [id])
+  items     CycleCountItem[]
+}
+
+model CycleCountItem {
+  id           Int      @id @default(autoincrement())
+  cycleCountId Int
+  productId    Int
+  expectedQty   Int
+  countedQty    Int
+  delta         Int
+  valueDelta    Float
+
+  cycleCount CycleCount @relation(fields: [cycleCountId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([cycleCountId])
+  @@index([productId])
+}
+
+// Add reverse relations to Product

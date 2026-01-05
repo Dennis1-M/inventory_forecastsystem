@@ -33,8 +33,17 @@ import UsersPage from "./pages/admin/UsersPage";
 // Dashboards
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
+
+// Manager pages
+import CycleCountHistoryPage from './pages/manager/CycleCountHistoryPage';
+import CycleCountPage from './pages/manager/CycleCountPage';
+import GrossMarginPage from './pages/manager/GrossMarginPage';
+import PurchaseOrdersPage from './pages/manager/PurchaseOrdersPage';
+
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
+
+// POS Page
 
 import type { Product } from "@/types/pos";
 
@@ -117,6 +126,55 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/manager/purchase-orders"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <PurchaseOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/cycle-counts/history"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <CycleCountHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/manager/cycle-counts"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <CycleCountPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/cycle-counts/history"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <CycleCountHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/cycle-counts/:id"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <CycleCountPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/reports/gross-margin"
+          element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <GrossMarginPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ---------------- Staff Routes ---------------- */}
         <Route
@@ -124,6 +182,16 @@ const App = () => {
           element={
             <ProtectedRoute allowedRoles={["STAFF"]}>
               <StaffDashboardWrapper />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------------- Staff POS ---------------- */}
+        <Route
+          path="/staff/pos"
+          element={
+            <ProtectedRoute allowedRoles={["STAFF"]}>
+              <POSPage />
             </ProtectedRoute>
           }
         />

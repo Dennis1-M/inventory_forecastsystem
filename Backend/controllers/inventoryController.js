@@ -1,20 +1,29 @@
 // backend/controllers/inventoryController.js
 import colors from "colors";
 import prisma from "../config/prisma.js";
+import { emitAlert, emitProductUpdate } from "../sockets/index.js";
 
 /**
  * HELPERS
  */
 async function createAlert(productId, type, message) {
-  return prisma.alert.create({
+  const alert = await prisma.alert.create({
     data: {
-      productId,
+      ...(productId ? { product: { connect: { id: productId } } } : {}),
       type,
       message,
-      isRead: false,
       isResolved: false,
     },
   });
+
+  // Emit realtime alert
+  try {
+    emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt });
+  } catch (e) {
+    console.warn('Failed to emit alert via socket', e.message);
+  }
+
+  return alert;
 }
 
 /**
@@ -89,6 +98,9 @@ export const receiveStock = async (req, res) => {
         });
       }
 
+      // Emit product update
+      try { emitProductUpdate({ productId: updatedProduct.id, currentStock: updatedProduct.currentStock }); } catch (e) { console.warn('Emit product update failed', e.message); }
+
       // Generate new alerts after update (non-transactional helper allowed in tx)
       await checkAndGenerateAlertsForProduct(updatedProduct);
 
@@ -107,9 +119,65 @@ export const receiveStock = async (req, res) => {
  * POST /api/inventory/adjust
  */
 export const adjustStock = async (req, res) => {
-  const { productId, type, quantity, notes } = req.body;
+  // Support two modes:
+  // 1) legacy mode: { productId, type, quantity, notes }
+  // 2) seed / convenience mode: { productId, newStock, reason }
+  const { productId, type, quantity, notes, newStock, reason } = req.body;
 
-  if (!productId || !type || quantity === undefined || Number(quantity) <= 0) {
+  if (!productId) {
+    return res.status(400).json({ message: "productId is required." });
+  }
+
+  const pId = Number(productId);
+
+  // If newStock provided, compute delta and perform an adjustment
+  if (newStock !== undefined) {
+    const target = Number(newStock);
+    if (Number.isNaN(target)) return res.status(400).json({ message: "newStock must be a number." });
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const p = await tx.product.findUnique({ where: { id: pId }, select: { currentStock: true, name: true } });
+        if (!p) throw new Error("ProductNotFound");
+
+        const delta = target - (p.currentStock || 0);
+        if (delta === 0) return { updatedProduct: p, movement: null };
+
+        const isIn = delta > 0;
+        const updatedProduct = await tx.product.update({ where: { id: pId }, data: { currentStock: target } });
+
+        const movement = await tx.inventoryMovement.create({
+          data: {
+            productId: pId,
+            type: isIn ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+            quantity: isIn ? delta : -Math.abs(delta),
+            description: reason || `Set stock to ${target}`,
+            userId: req.user?.id || 1,
+          },
+        });
+
+        if (updatedProduct.currentStock > 0) {
+          await tx.alert.updateMany({ where: { productId: pId, type: "OUT_OF_STOCK", isResolved: false }, data: { isResolved: true } });
+        }
+
+        // Emit product update
+        try { emitProductUpdate({ productId: updatedProduct.id, currentStock: updatedProduct.currentStock }); } catch (e) { console.warn('Emit product update failed', e.message); }
+
+        await checkAndGenerateAlertsForProduct(updatedProduct);
+
+        return { updatedProduct, movement };
+      });
+
+      return res.status(201).json({ message: "Stock adjusted.", ...result });
+    } catch (error) {
+      if (error.message === "ProductNotFound") return res.status(404).json({ message: "Product not found." });
+      console.error(colors.red("Error adjusting stock (newStock mode):"), error);
+      return res.status(500).json({ message: "Failed to adjust stock.", error: error.message });
+    }
+  }
+
+  // Legacy mode: type + quantity
+  if (!type || quantity === undefined || Number(quantity) <= 0) {
     return res.status(400).json({ message: "productId, type and positive quantity required." });
   }
 
@@ -117,7 +185,6 @@ export const adjustStock = async (req, res) => {
     return res.status(400).json({ message: "Invalid adjustment type." });
   }
 
-  const pId = Number(productId);
   const qty = Number(quantity);
   const isIn = type === "ADJUSTMENT_IN";
 
