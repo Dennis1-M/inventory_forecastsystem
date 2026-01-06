@@ -1,14 +1,8 @@
-import Sidebar from './Sidebar';
-
-const adminLinks = [
-  { to: '/admin/users', label: 'User Management' },
-  { to: '/admin/health', label: 'System Health' },
-  { to: '/admin/data', label: 'Data Management' },
-  { to: '/admin/settings', label: 'Settings' },
-];
 
 const AdminSidebar = () => {
-  return <Sidebar links={adminLinks} />;
+  // This is a legacy component. Use DashboardLayout with sidebarItems instead.
+  // Returning a minimal implementation for backward compatibility.
+  return <div className="w-64 bg-gray-800 text-white p-4">Admin Navigation</div>;
 };
 
 export default AdminSidebar;

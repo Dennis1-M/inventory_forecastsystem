@@ -69,6 +69,7 @@ await loadRoute("./routes/mpesaRoutes.js", "mpesa");
 await loadRoute("./routes/exportRoutes.js", "export");
 await loadRoute("./routes/healthRoutes.js", "health-status");
 await loadRoute("./routes/settingsRoutes.js", "settings");
+await loadRoute("./routes/setupRoutes.js", "setup");
 
 /* ===============================
    TEST / HEALTH ROUTES

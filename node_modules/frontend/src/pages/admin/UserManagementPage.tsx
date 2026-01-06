@@ -1,11 +1,10 @@
-
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import AddUserForm from '../../components/admin/AddUserForm';
 import EditUserForm from '../../components/admin/EditUserForm';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
-import { userApi } from '../../lib/api';
+import { useUsers } from '../../hooks';
+import apiService from '../../services/api';
 
 interface User {
   id: string;
@@ -21,20 +20,7 @@ const UserManagementPage = () => {
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const queryClient = useQueryClient();
-
-  const { data: users, isLoading, isError } = useQuery<{ data: User[] }>({
-    queryKey: ['users'],
-    queryFn: userApi.getUsers,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (userId: string) => userApi.deleteUser(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      setDeleteModalOpen(false);
-    },
-  });
+  const { users, loading, error, refetch } = useUsers();
 
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
@@ -46,9 +32,14 @@ const UserManagementPage = () => {
     setDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedUser) {
-      deleteMutation.mutate(selectedUser.id);
+  const handleConfirmDelete = async () => {
+    if (!selectedUser) return;
+    try {
+      await apiService.delete(`/users/${selectedUser.id}`);
+      setDeleteModalOpen(false);
+      refetch();
+    } catch (err) {
+      console.error('Error deleting user:', err);
     }
   };
 
@@ -80,6 +71,12 @@ const UserManagementPage = () => {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
+                  Email
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Role
                 </th>
                 <th
@@ -94,27 +91,27 @@ const UserManagementPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading && (
+              {loading && (
                 <tr>
-                  <td colSpan={4} className="text-center py-4">
+                  <td colSpan={5} className="text-center py-4">
                     Loading...
                   </td>
                 </tr>
               )}
-              {isError && (
+              {error && (
                 <tr>
-                  <td colSpan={4} className="text-center py-4 text-red-500">
+                  <td colSpan={5} className="text-center py-4 text-red-500">
                     Error fetching users.
                   </td>
                 </tr>
               )}
-              {users?.data.map((user: User) => (
+              {users && users.length > 0 && users.map((user: User) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500 ml-2">{user.email}</div>
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{user.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -155,11 +152,13 @@ const UserManagementPage = () => {
       <AddUserForm
         isOpen={isAddUserModalOpen}
         onClose={() => setAddUserModalOpen(false)}
+        onSuccess={refetch}
       />
       <EditUserForm
         isOpen={isEditUserModalOpen}
         onClose={() => setEditUserModalOpen(false)}
         user={selectedUser}
+        onSuccess={refetch}
       />
       <ConfirmationModal
         isOpen={isDeleteModalOpen}

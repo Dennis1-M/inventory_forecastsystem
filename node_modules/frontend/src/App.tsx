@@ -1,70 +1,79 @@
-import { Toaster } from 'react-hot-toast';
-import { Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import DataManagementPage from './pages/admin/DataManagementPage';
-import SettingsPage from './pages/admin/SettingsPage';
-import SystemHealthPage from './pages/admin/SystemHealthPage';
-import UserManagementPage from './pages/admin/UserManagementPage';
-import AdminDashboard from './pages/dashboards/AdminDashboard';
-import ManagerDashboard from './pages/dashboards/ManagerDashboard';
-import StaffDashboard from './pages/dashboards/StaffDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import LoginPage from './pages/auth/LoginPage';
 import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import AlertsPage from './pages/manager/AlertsPage';
-import ForecastingPage from './pages/manager/ForecastingPage';
-import InventoryPage from './pages/manager/InventoryPage';
-import SalesAnalyticsPage from './pages/manager/SalesAnalyticsPage';
-import SupplierManagementPage from './pages/manager/SupplierManagementPage';
-import POSPage from './pages/staff/POSPage';
-import SalesHistoryPage from './pages/staff/SalesHistoryPage';
+import ManagerDashboard from './pages/manager/ManagerDashboard';
+import InitialSetupPage from './pages/setup/InitialSetupPage';
+import StaffDashboard from './pages/staff/StaffDashboard';
+import { setupService } from './services/setup';
 
 function App() {
-  return (
-    <>
-      <Toaster position="top-center" reverseOrder={false} />
+  const [loading, setLoading] = useState(true);
+  const [setupNeeded, setSetupNeeded] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const { setupNeeded } = await setupService.checkInitialSetup();
+        setSetupNeeded(setupNeeded);
+        if (setupNeeded) {
+          navigate('/setup');
+        }
+      } catch (error) {
+        console.error("Failed to check setup status:", error);
+        // Handle server error case, maybe show an error page
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSetup();
+  }, [navigate]);
+
+  if (loading) {
+    return <div>Loading...</div>; // Or a proper loading spinner component
+  }
+
+  if (setupNeeded) {
+    return (
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERADMIN']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="users" element={<UserManagementPage />} />
-          <Route path="health" element={<SystemHealthPage />} />
-          <Route path="data" element={<DataManagementPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-        <Route
-          path="/manager"
-          element={
-            <ProtectedRoute allowedRoles={['MANAGER']}>
-              <ManagerDashboard />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="inventory" element={<InventoryPage />} />
-          <Route path="alerts" element={<AlertsPage />} />
-          <Route path="suppliers" element={<SupplierManagementPage />} />
-          <Route path="analytics" element={<SalesAnalyticsPage />} />
-          <Route path="forecasting" element={<ForecastingPage />} />
-        </Route>
-        <Route
-          path="/staff"
-          element={
-            <ProtectedRoute allowedRoles={['STAFF']}>
-              <StaffDashboard />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="pos" element={<POSPage />} />
-          <Route path="history" element={<SalesHistoryPage />} />
-        </Route>
+        <Route path="/setup" element={<InitialSetupPage />} />
       </Routes>
-    </>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'SUPERADMIN']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager"
+        element={
+          <ProtectedRoute allowedRoles={['MANAGER']}>
+            <ManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff"
+        element={
+          <ProtectedRoute allowedRoles={['STAFF']}>
+            <StaffDashboard />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 

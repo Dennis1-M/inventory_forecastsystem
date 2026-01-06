@@ -1,7 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
-import { userApi } from '../../lib/api';
+import apiService from '../../services/api';
 import Modal from '../common/Modal';
 
 interface User {
@@ -15,14 +13,14 @@ interface EditUserFormProps {
   isOpen: boolean;
   onClose: () => void;
   user: User | null;
+  onSuccess: () => void;
 }
 
-const EditUserForm = ({ isOpen, onClose, user }: EditUserFormProps) => {
+const EditUserForm = ({ isOpen, onClose, user, onSuccess }: EditUserFormProps) => {
   const [name, setName] = useState('');
   const [role, setRole] = useState('STAFF');
   const [error, setError] = useState('');
-
-  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -31,23 +29,20 @@ const EditUserForm = ({ isOpen, onClose, user }: EditUserFormProps) => {
     }
   }, [user]);
 
-  const mutation = useMutation({
-    mutationFn: (updatedUser: { id: string; name: string; role: string }) => 
-      userApi.updateUser(updatedUser.id, { name: updatedUser.name, role: updatedUser.role }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      onClose();
-    },
-    onError: (err: AxiosError) => {
-      const errorResponse = err.response?.data as { message?: string };
-      setError(errorResponse?.message || 'An error occurred.');
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user) {
-      mutation.mutate({ id: user.id, name, role });
+    if (!user) return;
+
+    setError('');
+    setLoading(true);
+    try {
+      await apiService.put(`/users/${user.id}`, { name, role });
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'An error occurred.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,6 +58,7 @@ const EditUserForm = ({ isOpen, onClose, user }: EditUserFormProps) => {
             onChange={(e) => setName(e.target.value)}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
+            disabled={loading}
           />
         </div>
         <div>
@@ -80,6 +76,7 @@ const EditUserForm = ({ isOpen, onClose, user }: EditUserFormProps) => {
             value={role}
             onChange={(e) => setRole(e.target.value)}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            disabled={loading}
           >
             <option>STAFF</option>
             <option>MANAGER</option>
@@ -91,15 +88,16 @@ const EditUserForm = ({ isOpen, onClose, user }: EditUserFormProps) => {
             type="button"
             onClick={onClose}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
             className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-            disabled={mutation.isPending}
+            disabled={loading}
           >
-            {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

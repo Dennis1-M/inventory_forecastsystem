@@ -6,11 +6,11 @@ import { allowRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// SuperAdmin only
-router.post("/", protect, allowRoles("SUPERADMIN"), createUser);
-router.get("/", protect, allowRoles("SUPERADMIN"), getUsers);
-router.get("/:id", protect, allowRoles("SUPERADMIN"), getUserById);
-router.put("/:id", protect, allowRoles("SUPERADMIN"), updateUser);
-router.delete("/:id", protect, allowRoles("SUPERADMIN"), deleteUser);
+// Admin and SuperAdmin can manage users
+router.post("/", protect, allowRoles("ADMIN", "SUPERADMIN"), createUser);
+router.get("/", protect, allowRoles("ADMIN", "SUPERADMIN"), getUsers);
+router.get("/:id", protect, allowRoles("ADMIN", "SUPERADMIN"), getUserById);
+router.put("/:id", protect, allowRoles("ADMIN", "SUPERADMIN"), updateUser);
+router.delete("/:id", protect, allowRoles("ADMIN", "SUPERADMIN"), deleteUser);
 
 export default router;

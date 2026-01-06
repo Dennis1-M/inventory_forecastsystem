@@ -3,7 +3,14 @@ import { Link } from 'react-router-dom';
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
+      <h1 className="text-4xl font-bold mb-4">SmartInventory</h1>
+      <p className="text-lg text-gray-600 mb-8">Your intelligent inventory management solution.</p>
+      <Link to="/login">
+        <button className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700">
+          Login
+        </button>
+      </Link>
       <header className="absolute inset-x-0 top-0 z-50">
         <nav className="flex items-center justify-between p-6 lg:px-8" aria-label="Global">
           <div className="flex lg:flex-1">
@@ -136,7 +143,7 @@ const LandingPage = () => {
         </h2>
         <div className="mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-24 lg:px-8 lg:pt-32">
           <div className="mt-16 border-t border-white/10 pt-8 sm:mt-20 lg:mt-24">
-            <p className="text-xs leading-5 text-gray-400">&copy; 2024 SmartInventory. All rights reserved.</p>
+            <p className="text-xs leading-5 text-gray-400">&copy; 2026 SmartInventory. All rights reserved.</p>
           </div>
         </div>
       </footer>

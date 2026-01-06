@@ -1,31 +1,79 @@
-import { Link } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
+import React from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface SidebarLink {
-    to: string;
-    label: string;
+interface SidebarItem {
+  icon: React.ReactNode;
+  label: string;
+  id: string;
 }
 
 interface SidebarProps {
-    links: SidebarLink[];
+  sidebarItems: SidebarItem[];
+  activeTab: string;
+  onTabChange: (id: string) => void;
+  title: string;
+  subtitle?: string;
 }
 
-const Sidebar = ({ links }: SidebarProps) => {
+const Sidebar: React.FC<SidebarProps> = ({ sidebarItems, activeTab, onTabChange, title, subtitle }) => {
+  const auth = useAuth();
+
+  const handleLogout = () => {
+    if (auth?.logout) {
+      auth.logout();
+    }
+  };
+
   return (
-    <div className="w-64 h-screen bg-gray-800 text-white">
-      <div className="p-4 text-2xl font-bold">Dashboard</div>
-      <nav>
-        <ul>
-          {links.map((link: SidebarLink) => (
-            <li key={link.to}>
-              <Link to={link.to} className="block p-4 hover:bg-gray-700">
-                {link.label}
-              </Link>
-            </li>
+    <>
+      {/* Sidebar */}
+      <div className="hidden lg:flex fixed left-0 top-0 w-64 h-screen bg-gradient-to-b from-slate-50 to-slate-100 border-r border-slate-200 flex-col z-40 shadow-sm">
+        {/* Logo Section */}
+        <div className="p-6 border-b border-slate-200 bg-white shadow-xs">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+              SI
+            </div>
+            <h2 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">{title}</h2>
+          </div>
+          {subtitle && <p className="text-xs text-slate-500 ml-12">{subtitle}</p>}
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium text-sm ${
+                activeTab === item.id
+                  ? 'bg-white text-indigo-600 shadow-sm border-l-4 border-indigo-600 pl-3'
+                  : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-xs'
+              }`}
+            >
+              <span className="w-5 h-5 flex items-center justify-center">{item.icon}</span>
+              <span className="font-medium">{item.label}</span>
+            </button>
           ))}
-        </ul>
-      </nav>
-    </div>
+        </nav>
+
+        {/* Logout Button */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu Button - shown in Topbar */}
+    </>
   );
 };
 
-export default Sidebar;
+export { Sidebar };
+
