@@ -66,6 +66,9 @@ await loadRoute("./routes/forecastRoutes.js", "forecast");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
 await loadRoute("./routes/mpesaRoutes.js", "mpesa");
+await loadRoute("./routes/exportRoutes.js", "export");
+await loadRoute("./routes/healthRoutes.js", "health-status");
+await loadRoute("./routes/settingsRoutes.js", "settings");
 
 /* ===============================
    TEST / HEALTH ROUTES

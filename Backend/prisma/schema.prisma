@@ -256,4 +256,12 @@ model CycleCountItem {
   @@index([productId])
 }
 
-// Add reverse relations to Product
+////////////////////////////
+// SETTINGS
+////////////////////////////
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}

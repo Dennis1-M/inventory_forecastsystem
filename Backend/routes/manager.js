@@ -1,7 +1,7 @@
 // backend/routes/manager.js - Add these to your existing backend
-const express = require('express');
+import { PrismaClient } from '@prisma/client';
+import express from 'express';
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // ====================
@@ -420,4 +420,4 @@ router.get('/reports/gross-margin', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
