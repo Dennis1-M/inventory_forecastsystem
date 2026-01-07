@@ -9,6 +9,7 @@
     "prisma:migrate": "npx prisma migrate dev --name init",
     "prisma:push": "npx prisma db push",
     "seed": "node prisma/seed.js",
+    "seed:big-data": "node prisma/seed-big-data.js",
     "test": "vitest"
   },
   "dependencies": {

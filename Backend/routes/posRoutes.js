@@ -1,6 +1,6 @@
 import express from "express";
 import { checkoutPOS } from "../controllers/posController.js";
-import { authorize, protect } from "../middleware/auth.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

@@ -9,7 +9,9 @@ export const useProducts = () => {
   const fetchProducts = async () => {
     try {
       const response = await apiService.get('/products');
-      setProducts(response.data);
+      // Extract the data array from the response
+      const productsData = response.data?.data || response.data || [];
+      setProducts(Array.isArray(productsData) ? productsData : []);
       setError(null);
     } catch (err) {
       setError('Failed to load products');
@@ -203,24 +205,25 @@ export const useForecast = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchForecast = async () => {
-      try {
-        const response = await apiService.get('/forecast');
-        setForecast(response.data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load forecast');
-        setForecast(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchForecast = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.get('/forecast');
+      setForecast(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load forecast');
+      setForecast(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchForecast();
   }, []);
 
-  return { forecast, loading, error };
+  return { forecast, loading, error, refetch: fetchForecast };
 };
 
 export const useSalesAnalytics = () => {

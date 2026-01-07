@@ -1,19 +1,19 @@
 import { Download } from 'lucide-react';
 import React, { useState } from 'react';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
 } from 'recharts';
 import { Button, Card, CardBody, CardHeader } from '../../components/ui';
 import { useSalesAnalytics } from '../../hooks';
@@ -35,9 +35,33 @@ const AnalyticsPage: React.FC = () => {
 
   const COLORS = ['#4f46e5', '#06b6d4', '#10b981'];
 
-  const stats = analytics?.stats || [];
+  const stats = analytics?.stats || {};
 
   const topProducts = analytics?.topProducts || [];
+
+  // Transform stats object into array for rendering
+  const statsArray = [
+    {
+      label: 'Total Products',
+      value: stats.totalProducts || 0,
+      change: '+0 this month'
+    },
+    {
+      label: 'Low Stock Items',
+      value: stats.lowStockItems || 0,
+      change: 'Requires attention'
+    },
+    {
+      label: 'Team Members',
+      value: stats.teamMembers || 0,
+      change: 'Active staff'
+    },
+    {
+      label: 'Active Alerts',
+      value: stats.activeAlerts || 0,
+      change: 'Pending resolution'
+    }
+  ];
 
   if (loading) {
     return (
@@ -92,7 +116,7 @@ const AnalyticsPage: React.FC = () => {
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat: any, index: number) => (
+        {statsArray.map((stat: any, index: number) => (
           <Card key={index}>
             <div className="flex items-center justify-between">
               <div>

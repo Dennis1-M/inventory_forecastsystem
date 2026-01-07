@@ -1,25 +1,50 @@
 import { Search, ShoppingCart } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Card, EmptyState, Input, Loading } from '../../components/ui';
 import { useProducts } from '../../hooks';
+import apiService from '../../services/api';
 
 const SalesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [categories, setCategories] = useState<any[]>([]);
   const { products, loading } = useProducts();
 
-  const filteredProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await apiService.get('/categories');
+        setCategories(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || p.categoryId === parseInt(selectedCategory);
+    return matchesSearch && matchesCategory;
+  });
 
   const handleAddToCart = (product: any) => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const existingItem = cart.find((item: any) => item.id === product.id);
+    const existingItem = cart.find((item: any) => item.productId === product.id);
+
+    const price = product.unitPrice || product.price || 0;
 
     if (existingItem) {
       existingItem.quantity += 1;
+      existingItem.total = existingItem.quantity * existingItem.unitPrice;
     } else {
-      cart.push({ ...product, quantity: 1 });
+      cart.push({
+        productId: product.id,
+        name: product.name,
+        unitPrice: price,
+        quantity: 1,
+        total: price
+      });
     }
 
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -48,9 +73,11 @@ const SalesPage: React.FC = () => {
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">All Categories</option>
-            <option value="electronics">Electronics</option>
-            <option value="groceries">Groceries</option>
-            <option value="clothing">Clothing</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -71,8 +98,12 @@ const SalesPage: React.FC = () => {
                 <h3 className="text-lg font-bold mb-2">{product.name}</h3>
                 <p className="text-gray-600 text-sm mb-4 flex-1">{product.description}</p>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-2xl font-bold text-indigo-600">Ksh {product.price?.toLocaleString()}</p>
-                  <p className="text-sm text-gray-500">{product.stock} in stock</p>
+                  <p className="text-2xl font-bold text-indigo-600">
+                    Ksh {(product.unitPrice || product.price || 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {product.currentStock || product.stock || 0} in stock
+                  </p>
                 </div>
                 <Button
                   label="Add to Cart"

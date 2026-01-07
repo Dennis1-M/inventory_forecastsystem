@@ -14,9 +14,7 @@ export const getAdminDashboard = async (req, res) => {
     const [totalProducts, teamMembers, activeAlerts, recentMovements, salesTrend] = await Promise.all([
       prisma.product.count(),
       prisma.user.count({
-        where: user.role === "MANAGER"
-          ? { createdBy: user.id, isActive: true }
-          : { role: { not: "SUPERADMIN" }, isActive: true },
+        where: { role: { not: "SUPERADMIN" }, isActive: true },
       }),
       prisma.alert.count({ where: { isResolved: false } }),
       prisma.inventoryMovement.findMany({
@@ -29,21 +27,27 @@ export const getAdminDashboard = async (req, res) => {
         },
       }),
       prisma.sale.groupBy({
-        by: ['saleDate'],
-        _sum: { totalSaleAmount: true },
-        where: { saleDate: { gte: sevenDaysAgo } },
-        orderBy: { saleDate: 'asc' },
+        by: ['createdAt'],
+        _sum: { totalAmount: true },
+        where: { createdAt: { gte: sevenDaysAgo } },
+        orderBy: { createdAt: 'asc' },
       }),
     ]);
 
     // Fetch recent sales with items for analytics
     const recentSales = await prisma.sale.findMany({
       take: 20,
-      orderBy: { saleDate: 'desc' },
+      orderBy: { createdAt: 'desc' },
       include: {
         items: {
           include: {
-            product: { select: { name: true, category: true } }
+            product: { 
+              select: { 
+                name: true, 
+                categoryId: true,
+                category: { select: { name: true } }
+              } 
+            }
           }
         }
       }
@@ -55,7 +59,7 @@ export const getAdminDashboard = async (req, res) => {
     // Transform sales for frontend
     const transactions = recentSales.flatMap(sale => 
       sale.items.map(item => ({
-        date: sale.saleDate,
+        date: sale.createdAt,
         productName: item.product?.name || 'Unknown',
         quantity: item.quantity,
         amount: Number(item.total || 0)
@@ -65,7 +69,7 @@ export const getAdminDashboard = async (req, res) => {
     // Group by category
     const byCategory = recentSales.reduce((acc, sale) => {
       sale.items.forEach(item => {
-        const category = item.product?.category || 'Uncategorized';
+        const category = item.product?.category?.name || 'Uncategorized';
         if (!acc[category]) {
           acc[category] = { total: 0, count: 0 };
         }
@@ -75,11 +79,38 @@ export const getAdminDashboard = async (req, res) => {
       return acc;
     }, {});
 
+    // Transform sales trend for frontend charts (dailySalesData)
+    const dailySalesData = salesTrend.map(trend => ({
+      date: new Date(trend.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      sales: Number(trend._sum?.totalAmount || 0)
+    }));
+
+    // Transform category data for frontend charts
+    const categoryData = Object.entries(byCategory).map(([category, data]) => ({
+      category: category,
+      sales: Number(data.total || 0)
+    }));
+
+    // Transform payment methods data
+    const paymentData = recentSales.reduce((acc, sale) => {
+      const method = sale.paymentMethod || 'Other';
+      const existing = acc.find(p => p.name === method);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        acc.push({ name: method, value: 1 });
+      }
+      return acc;
+    }, []);
+
     res.json({
       stats: { totalProducts, lowStockItems, teamMembers, activeAlerts },
       recentMovements,
       salesTrend,
-      // Sales analytics for admin monitoring
+      // Sales analytics for frontend charts
+      dailySalesData,
+      categoryData,
+      paymentData,
       totalAmount: totalSalesAmount,
       count: recentSales.length,
       transactions,

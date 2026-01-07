@@ -1,5 +1,5 @@
 // forecast/data/demandSeries.js
-import { prisma } from "../../index.js";
+import prisma from "../../config/prisma.js";
 
 /**
  * Build daily demand series for a product

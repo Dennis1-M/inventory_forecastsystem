@@ -6,37 +6,61 @@ interface StaffActivity {
   id: string;
   staffName: string;
   action: string;
-  details: string;
+  description?: string;
+  details?: any;
   timestamp: string;
-  status: 'completed' | 'pending' | 'issues';
+  type?: string;
+  staffId?: number;
+  staffEmail?: string;
 }
 
 const StaffOversightPage = () => {
   const [activities, setActivities] = useState<StaffActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'sales' | 'stock' | 'issues'>('all');
+  const [filter, setFilter] = useState<'all' | 'sales' | 'stock' | 'issues' | 'shifts'>('all');
+
+  const fetchActivities = async () => {
+    try {
+      setLoading(true);
+      // Fetch staff activities (includes sales and inventory movements)
+      const response = await apiService.get('/staff-activities');
+      const staffData = response.data?.data || response.data || [];
+      
+      // Sort by timestamp
+      const allActivities = staffData.sort((a: any, b: any) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      setActivities(allActivities);
+    } catch (err) {
+      console.error('Failed to fetch staff activities:', err);
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        setLoading(true);
-        const response = await apiService.get('/staff-activities');
-        const activityData = response.data?.data || response.data || [];
-        setActivities(Array.isArray(activityData) ? activityData : []);
-      } catch (err) {
-        console.error('Failed to fetch staff activities:', err);
-        setActivities([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchActivities();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchActivities, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredActivities = filter === 'all'
     ? activities
-    : activities.filter(a => a.action.toLowerCase().includes(filter));
+    : filter === 'shifts'
+    ? activities.filter(a => a.type === 'shift' || a.action === 'SHIFT_END')
+    : activities.filter(a => (a.type || a.action).toLowerCase().includes(filter));
+
+  const getActivityStatus = (activity: StaffActivity) => {
+    // Derive status from activity type
+    if (activity.type === 'sale') return 'completed';
+    if (activity.type === 'shift') return 'completed';
+    if (activity.type === 'inventory') return 'pending';
+    return 'completed';
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -52,37 +76,47 @@ const StaffOversightPage = () => {
   };
 
   const stats = {
-    totalEntries: activities.length,
-    completedEntries: activities.filter(a => a.status === 'completed').length,
-    pendingEntries: activities.filter(a => a.status === 'pending').length,
-    issuesFound: activities.filter(a => a.status === 'issues').length,
+    shiftsEnded: activities.filter(a => a.type === 'shift' || a.action === 'SHIFT_END').length,
+    completedEntries: activities.filter(a => a.type === 'sale').length,
+    pendingEntries: activities.filter(a => a.type === 'inventory').length,
+    issuesFound: 0, // Could be calculated from error logs if available
   };
 
   if (loading) return <div className="p-6">Loading staff activities...</div>;
 
   return (
     <div className="space-y-6 p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Staff Oversight</h2>
+        <button
+          onClick={fetchActivities}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+        >
+          Refresh
+        </button>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-gray-500 text-sm">Total Entries</p>
           <p className="text-2xl font-bold text-gray-900">{stats.totalEntries}</p>
         </div>
         <div className="bg-green-50 rounded-lg shadow p-4 border border-green-200">
-          <p className="text-green-700 text-sm font-medium">Completed</p>
+          <p className="text-green-700 text-sm font-medium">Sales Completed</p>
           <p className="text-2xl font-bold text-green-900">{stats.completedEntries}</p>
         </div>
         <div className="bg-blue-50 rounded-lg shadow p-4 border border-blue-200">
-          <p className="text-blue-700 text-sm font-medium">Pending Review</p>
+          <p className="text-blue-700 text-sm font-medium">Inventory Updates</p>
           <p className="text-2xl font-bold text-blue-900">{stats.pendingEntries}</p>
         </div>
-        <div className="bg-red-50 rounded-lg shadow p-4 border border-red-200">
-          <p className="text-red-700 text-sm font-medium">Issues Found</p>
-          <p className="text-2xl font-bold text-red-900">{stats.issuesFound}</p>
+        <div className="bg-purple-50 rounded-lg shadow p-4 border border-purple-200">
+          <p className="text-purple-700 text-sm font-medium">Shifts Ended</p>
+          <p className="text-2xl font-bold text-purple-900">{stats.shiftsEnded}</p>
         </div>
       </div>
 
       <div className="flex gap-2">
-        {(['all', 'sales', 'stock', 'issues'] as const).map(f => (
+        {(['all', 'sales', 'stock', 'shifts'] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -120,13 +154,13 @@ const StaffOversightPage = () => {
                 <tr key={activity.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{activity.staffName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{activity.action}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{activity.details}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{activity.description || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                     {new Date(activity.timestamp).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(activity.status)}`}>
-                      {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(getActivityStatus(activity))}`}>
+                      {getActivityStatus(activity).charAt(0).toUpperCase() + getActivityStatus(activity).slice(1)}
                     </span>
                   </td>
                 </tr>

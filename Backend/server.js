@@ -61,6 +61,7 @@ await loadRoute("./routes/syncRoutes.js", "sync");
 await loadRoute("./routes/purchaseOrderRoutes.js", "purchase-orders");
 await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
+await loadRoute("./routes/supplierRoutes.js", "suppliers");
 await loadRoute("./routes/manager.js", "manager");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
 await loadRoute("./routes/forecastTriggerRoutes.js", "forecast-trigger");
@@ -127,6 +128,7 @@ app.get("/", (req, res) => {
    START SERVER
 ================================ */
 import { createServer } from 'http';
+import { startForecastScheduler } from './jobs/forecastScheduler.js';
 import { initSockets } from './sockets/index.js';
 
 const PORT = process.env.PORT || 5001;
@@ -136,6 +138,9 @@ if (process.env.NODE_ENV !== 'test') {
   // Initialize socket.io
   initSockets(server);
 
+  // Start forecast scheduler
+  startForecastScheduler();
+
   server.listen(PORT, () => {
     console.log(`\n🎉 Server running on http://localhost:${PORT}`);
     console.log("🔗 Available endpoints:");
@@ -144,6 +149,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log("   POST /api/auth/register");
     console.log("   GET  /api/auth/users");
     console.log('🔌 Socket.io server initialized');
+    console.log('📊 Forecast scheduler initialized');
   });
 }
 

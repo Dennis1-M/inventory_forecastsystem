@@ -1,4 +1,4 @@
-import { prisma } from "../index.js";
+import prisma from "../config/prisma.js";
 
 // --------------------------
 // POST /api/pos/checkout

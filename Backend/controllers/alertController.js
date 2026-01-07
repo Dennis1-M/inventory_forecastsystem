@@ -2,6 +2,7 @@
 // --------------------------------------
 // Exposes alert data to dashboards
 // -----------------------------------
+import prisma from '../config/prisma.js';
 
 export const getActiveAlerts = async (req, res) => {
   const alerts = await prisma.alert.findMany({

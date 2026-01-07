@@ -1,7 +1,7 @@
 // forecast/scheduler/forecastRunner.js
 // Orchestrates forecast execution and persistence
 
-import { prisma } from "../../index.js";
+import prisma from "../../config/prisma.js";
 import { getDailyDemandSeries } from "../data/demandSeries.js";
 import { runForecastModel } from "../models/modelSelector.js";
 

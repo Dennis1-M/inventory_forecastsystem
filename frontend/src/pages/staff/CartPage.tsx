@@ -1,12 +1,14 @@
 import { ShoppingCart, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button, Card, CardBody, CardFooter, CardHeader, ConfirmModal, EmptyState, Table } from '../../components/ui';
+import apiService from '../../services/api';
 
 interface CartItem {
-  id: string;
+  productId: number;
   name: string;
-  price: number;
+  unitPrice: number;
   quantity: number;
+  total?: number;
 }
 
 const CartPage: React.FC = () => {
@@ -27,20 +29,20 @@ const CartPage: React.FC = () => {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = cartItems.reduce((sum, item) => sum + ((item.unitPrice || 0) * (item.quantity || 0)), 0);
 
-  const handleRemoveItem = (id: string) => {
-    const updated = cartItems.filter(item => item.id !== id);
+  const handleRemoveItem = (productId: number) => {
+    const updated = cartItems.filter(item => item.productId !== productId);
     setCartItems(updated);
     localStorage.setItem('cart', JSON.stringify(updated));
   };
 
-  const handleQuantityChange = (id: string, quantity: number) => {
+  const handleQuantityChange = (productId: number, quantity: number) => {
     if (quantity <= 0) {
-      handleRemoveItem(id);
+      handleRemoveItem(productId);
     } else {
       const updated = cartItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
+        item.productId === productId ? { ...item, quantity, total: quantity * item.unitPrice } : item
       );
       setCartItems(updated);
       localStorage.setItem('cart', JSON.stringify(updated));
@@ -52,11 +54,29 @@ const CartPage: React.FC = () => {
   };
 
   const handleConfirmSale = async () => {
-    console.log('Processing sale...', { cartItems, paymentMethod, total });
-    setConfirmModalOpen(false);
-    setCartItems([]);
-    localStorage.removeItem('cart');
-    window.dispatchEvent(new Event('cartUpdated'));
+    try {
+      const saleData = {
+        items: cartItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice || 0,
+          total: item.total || (item.unitPrice * item.quantity)
+        })),
+        paymentMethod: paymentMethod.toUpperCase(),
+        totalAmount: total
+      };
+
+      await apiService.post('/sales', saleData);
+      
+      alert('Sale completed successfully!');
+      setConfirmModalOpen(false);
+      setCartItems([]);
+      localStorage.removeItem('cart');
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Failed to complete sale:', error);
+      alert('Failed to complete sale. Please try again.');
+    }
   };
 
   const tableColumns = [
@@ -68,17 +88,17 @@ const CartPage: React.FC = () => {
 
   const tableData = cartItems.map(item => ({
     name: item.name,
-    price: `Ksh ${item.price.toLocaleString()}`,
+    price: `Ksh ${(item.unitPrice || 0).toLocaleString()}`,
     quantity: (
       <input
         type="number"
         min="1"
         value={item.quantity}
-        onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value))}
+        onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value))}
         className="w-16 px-2 py-1 border border-gray-300 rounded-lg"
       />
     ),
-    total: `Ksh ${(item.price * item.quantity).toLocaleString()}`,
+    total: `Ksh ${((item.unitPrice || 0) * item.quantity).toLocaleString()}`,
   }));
 
   if (cartItems.length === 0) {
@@ -113,7 +133,7 @@ const CartPage: React.FC = () => {
                   <button
                     onClick={() => {
                       const item = cartItems.find(i => i.name === row.name);
-                      if (item) handleRemoveItem(item.id);
+                      if (item) handleRemoveItem(item.productId);
                     }}
                     className="text-red-600 hover:text-red-800 transition-colors"
                   >

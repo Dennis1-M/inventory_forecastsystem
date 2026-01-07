@@ -21,7 +21,7 @@ export const exponentialSmoothingForecast = (
   const forecast = [];
   for (let i = 1; i <= horizon; i++) {
     forecast.push({
-      period: new Date(Date.now() + i * 86400000),
+      period: i,
       predicted: level,
       lower95: level * 0.75,
       upper95: level * 1.25,

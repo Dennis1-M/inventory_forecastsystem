@@ -1,7 +1,7 @@
 // forecast/data/leadTime.js
 // Estimates supplier lead time using historical inventory receipts
 
-import { prisma } from "../../index.js";
+import prisma from "../../config/prisma.js";
 
 /**
  * Estimate average lead time for a product in days
