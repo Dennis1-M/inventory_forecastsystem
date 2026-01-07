@@ -63,6 +63,7 @@ await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
 await loadRoute("./routes/manager.js", "manager");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
+await loadRoute("./routes/forecastTriggerRoutes.js", "forecast-trigger");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
 await loadRoute("./routes/mpesaRoutes.js", "mpesa");
@@ -70,6 +71,11 @@ await loadRoute("./routes/exportRoutes.js", "export");
 await loadRoute("./routes/healthRoutes.js", "health-status");
 await loadRoute("./routes/settingsRoutes.js", "settings");
 await loadRoute("./routes/setupRoutes.js", "setup");
+await loadRoute("./routes/notificationsRoutes.js", "notifications");
+await loadRoute("./routes/activityLogsRoutes.js", "activity-logs");
+await loadRoute("./routes/staffActivitiesRoutes.js", "staff-activities");
+await loadRoute("./routes/reportsRoutes.js", "reports");
+await loadRoute("./routes/apiRoutes.js", "api");
 
 /* ===============================
    TEST / HEALTH ROUTES

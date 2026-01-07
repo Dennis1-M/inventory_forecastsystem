@@ -34,7 +34,9 @@ export const useInventory = () => {
   const fetchInventory = async () => {
     try {
       const response = await apiService.get('/inventory');
-      setInventory(response.data);
+      // Extract the data array from the response
+      const inventoryData = response.data?.data || response.data || [];
+      setInventory(Array.isArray(inventoryData) ? inventoryData : []);
       setError(null);
     } catch (err) {
       setError('Failed to load inventory');

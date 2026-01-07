@@ -21,36 +21,11 @@ const StaffOversightPage = () => {
       try {
         setLoading(true);
         const response = await apiService.get('/staff-activities');
-        setActivities(response.data || []);
+        const activityData = response.data?.data || response.data || [];
+        setActivities(Array.isArray(activityData) ? activityData : []);
       } catch (err) {
         console.error('Failed to fetch staff activities:', err);
-        // Mock data for demonstration
-        setActivities([
-          {
-            id: '1',
-            staffName: 'John Doe',
-            action: 'Sales Entry',
-            details: 'Entered 5 sales transactions',
-            timestamp: new Date(Date.now() - 1000000).toISOString(),
-            status: 'completed'
-          },
-          {
-            id: '2',
-            staffName: 'Jane Smith',
-            action: 'Stock Update',
-            details: 'Updated inventory for Widget A - 50 units in',
-            timestamp: new Date(Date.now() - 500000).toISOString(),
-            status: 'completed'
-          },
-          {
-            id: '3',
-            staffName: 'Bob Johnson',
-            action: 'Sales Entry',
-            details: 'Entered 2 sales - Discrepancy flagged',
-            timestamp: new Date(Date.now() - 200000).toISOString(),
-            status: 'issues'
-          },
-        ]);
+        setActivities([]);
       } finally {
         setLoading(false);
       }

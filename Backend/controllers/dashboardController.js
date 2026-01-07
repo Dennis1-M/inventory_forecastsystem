@@ -36,10 +36,54 @@ export const getAdminDashboard = async (req, res) => {
       }),
     ]);
 
+    // Fetch recent sales with items for analytics
+    const recentSales = await prisma.sale.findMany({
+      take: 20,
+      orderBy: { saleDate: 'desc' },
+      include: {
+        items: {
+          include: {
+            product: { select: { name: true, category: true } }
+          }
+        }
+      }
+    });
+
+    // Calculate total sales amount
+    const totalSalesAmount = recentSales.reduce((sum, sale) => sum + Number(sale.totalAmount || 0), 0);
+
+    // Transform sales for frontend
+    const transactions = recentSales.flatMap(sale => 
+      sale.items.map(item => ({
+        date: sale.saleDate,
+        productName: item.product?.name || 'Unknown',
+        quantity: item.quantity,
+        amount: Number(item.total || 0)
+      }))
+    );
+
+    // Group by category
+    const byCategory = recentSales.reduce((acc, sale) => {
+      sale.items.forEach(item => {
+        const category = item.product?.category || 'Uncategorized';
+        if (!acc[category]) {
+          acc[category] = { total: 0, count: 0 };
+        }
+        acc[category].total += Number(item.total || 0);
+        acc[category].count += 1;
+      });
+      return acc;
+    }, {});
+
     res.json({
       stats: { totalProducts, lowStockItems, teamMembers, activeAlerts },
       recentMovements,
       salesTrend,
+      // Sales analytics for admin monitoring
+      totalAmount: totalSalesAmount,
+      count: recentSales.length,
+      transactions,
+      byCategory
     });
   } catch (error) {
     console.error("Dashboard error:", error);

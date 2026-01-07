@@ -1,6 +1,7 @@
 import express from "express";
 import {
     adjustStock,
+    getInventory,
     getInventoryMovements,
     getInventorySummary,
     getLowStockAlerts,
@@ -22,10 +23,13 @@ router.post('/cycle-counts', allowRoles('MANAGER', 'ADMIN', 'SUPERADMIN'), creat
 router.get('/cycle-counts', allowRoles('MANAGER', 'ADMIN', 'SUPERADMIN'), listCycleCounts);
 router.get('/cycle-counts/:id', allowRoles('MANAGER', 'ADMIN', 'SUPERADMIN'), getCycleCount);
 
-// Only ADMIN and SUPERADMIN can access inventory management
-router.use(allowRoles("ADMIN", "SUPERADMIN"));
+// Get inventory list (main endpoint for GET /api/inventory)
+router.get('/', getInventory);
 
-// Receive new stock
+// MANAGER, ADMIN and SUPERADMIN can manage inventory (restock, adjust)
+router.use(allowRoles("MANAGER", "ADMIN", "SUPERADMIN"));
+
+// Receive new stock (restocking)
 router.post("/receive", receiveStock);
 
 // Adjust stock
@@ -37,7 +41,7 @@ router.get("/movements", getInventoryMovements);
 // Low stock alerts
 router.get("/low-stock", getLowStockAlerts);
 
-// NEW: Inventory summary
+// Inventory summary
 router.get("/summary", getInventorySummary);
 
 export default router;

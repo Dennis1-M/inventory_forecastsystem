@@ -8,4 +8,7 @@ const router = express.Router();
 // GET /api/dashboard
 router.get("/", protect, allowRoles("SUPERADMIN", "ADMIN", "MANAGER"), getAdminDashboard);
 
+// GET /api/dashboard/sales-analytics (alias for main dashboard)
+router.get("/sales-analytics", protect, allowRoles("SUPERADMIN", "ADMIN", "MANAGER"), getAdminDashboard);
+
 export default router;

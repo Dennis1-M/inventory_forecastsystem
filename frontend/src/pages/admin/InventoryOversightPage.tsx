@@ -72,7 +72,7 @@ const InventoryOversightPage = () => {
             {inventory && inventory.length > 0 ? (
               inventory.slice(0, 10).map((item: any) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.productName || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.sku || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">{item.quantity}</td>
                   <td className="px-6 py-4 whitespace-nowrap">

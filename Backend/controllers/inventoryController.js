@@ -236,6 +236,56 @@ export const adjustStock = async (req, res) => {
 };
 
 /**
+ * GET ALL INVENTORY PRODUCTS
+ * GET /api/inventory
+ * Returns array of products with inventory info
+ */
+export const getInventory = async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Transform to inventory format
+    const inventory = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      quantity: product.currentStock,
+      lowStockThreshold: product.lowStockThreshold,
+      unitPrice: product.unitPrice,
+      costPrice: product.costPrice,
+      price: product.unitPrice, // For compatibility
+      category: product.category?.name,
+      supplier: product.supplier?.name,
+      status:
+        product.currentStock <= 0
+          ? 'out-of-stock'
+          : product.currentStock <= product.lowStockThreshold
+            ? 'low-stock'
+            : 'in-stock',
+    }));
+
+    res.json({
+      success: true,
+      data: inventory,
+      count: inventory.length,
+    });
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch inventory',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * GET ALL INVENTORY MOVEMENTS
  * GET /api/inventory/movements
  */

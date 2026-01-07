@@ -1,11 +1,11 @@
 import express from "express";
-import { 
-    getSales, 
-    createSale, 
-    getSaleById, 
-    updateSale, 
+import {
+    createSale,
     deleteSale,
-    getSalesForForecast
+    getSaleById,
+    getSales,
+    getSalesForForecast,
+    updateSale
 } from "../controllers/saleController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -16,6 +16,7 @@ router.get("/forecast", protect, getSalesForForecast);
 
 // Standard CRUD routes
 router.get("/", protect, getSales);
+// Allow STAFF to create sales (POS functionality)
 router.post("/", protect, createSale);
 router.get("/:id", protect, getSaleById);
 router.put("/:id", protect, updateSale);

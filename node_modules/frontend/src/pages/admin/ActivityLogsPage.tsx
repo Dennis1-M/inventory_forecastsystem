@@ -24,40 +24,13 @@ const ActivityLogsPage = () => {
       try {
         setLoading(true);
         const response = await apiService.get('/activity-logs');
-        setLogs(response.data || []);
+        const logData = response.data?.data || response.data || [];
+        setLogs(Array.isArray(logData) ? logData : []);
+        setError(null);
       } catch (err) {
         console.error('Failed to fetch activity logs:', err);
         setError('Failed to load activity logs');
-        // Mock data for demonstration
-        setLogs([
-          {
-            id: '1',
-            userId: '1',
-            action: 'LOGIN',
-            description: 'User logged in successfully',
-            timestamp: new Date(Date.now() - 1000000).toISOString(),
-            status: 'success',
-            userEmail: 'admin@example.com'
-          },
-          {
-            id: '2',
-            userId: '1',
-            action: 'CREATE_USER',
-            description: 'Created new user: manager@example.com',
-            timestamp: new Date(Date.now() - 500000).toISOString(),
-            status: 'success',
-            userEmail: 'admin@example.com'
-          },
-          {
-            id: '3',
-            userId: '2',
-            action: 'UPDATE_INVENTORY',
-            description: 'Updated inventory for Product: Widget',
-            timestamp: new Date(Date.now() - 200000).toISOString(),
-            status: 'success',
-            userEmail: 'manager@example.com'
-          },
-        ]);
+        setLogs([]);
       } finally {
         setLoading(false);
       }

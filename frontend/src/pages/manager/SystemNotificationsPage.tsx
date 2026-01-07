@@ -22,48 +22,11 @@ const SystemNotificationsPage = () => {
       try {
         setLoading(true);
         const response = await apiService.get('/notifications');
-        setNotifications(response.data || []);
+        const notificationData = response.data?.data || response.data || [];
+        setNotifications(Array.isArray(notificationData) ? notificationData : []);
       } catch (err) {
         console.error('Failed to fetch notifications:', err);
-        // Mock data for demonstration
-        setNotifications([
-          {
-            id: '1',
-            type: 'low_inventory',
-            title: 'Low Stock Alert',
-            message: 'Product: Widget A is running low (5 units remaining)',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            severity: 'warning',
-            read: false
-          },
-          {
-            id: '2',
-            type: 'sales_anomaly',
-            title: 'Unusual Sales Pattern',
-            message: 'Sales for Category B increased by 150% in the last 24 hours',
-            timestamp: new Date(Date.now() - 7200000).toISOString(),
-            severity: 'info',
-            read: false
-          },
-          {
-            id: '3',
-            type: 'forecast_update',
-            title: 'Forecast Updated',
-            message: 'Demand forecast for next month has been updated with latest sales data',
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            severity: 'info',
-            read: true
-          },
-          {
-            id: '4',
-            type: 'alert',
-            title: 'Critical: Out of Stock',
-            message: 'Product: Premium Widget is now completely out of stock',
-            timestamp: new Date(Date.now() - 10800000).toISOString(),
-            severity: 'critical',
-            read: false
-          },
-        ]);
+        setNotifications([]);
       } finally {
         setLoading(false);
       }
