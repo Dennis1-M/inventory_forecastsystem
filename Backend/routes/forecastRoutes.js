@@ -1,8 +1,10 @@
 import express from "express";
 import prisma from "../config/prisma.js";
 import {
+    compareModels,
     getForecastHistory,
     runForecastForProduct,
+    runForecastWithModel,
     saveForecast
 } from "../controllers/forecastController.js";
 import { evaluateStockoutRisk } from "../forecast2/index.js";
@@ -161,6 +163,12 @@ router.post("/run", protect, runForecastForProduct);
 
 // Save forecast manually or from external script
 router.post("/save", protect, saveForecast);
+
+// NEW: Run forecast with specific model
+router.post("/run-with-model", protect, runForecastWithModel);
+
+// NEW: Compare multiple models
+router.post("/compare-models", protect, compareModels);
 
 // Full history
 router.get("/history/:productId", protect, getForecastHistory);

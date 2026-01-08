@@ -18,12 +18,22 @@ export const Card: React.FC<CardProps> = ({ children, className = '', onClick })
 };
 
 interface CardHeaderProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   action?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ title, subtitle, action }) => {
+export const CardHeader: React.FC<CardHeaderProps> = ({ title, subtitle, action, children, className = '' }) => {
+  if (children) {
+    return (
+      <div className={`mb-4 pb-4 border-b border-gray-100 ${className}`}>
+        {children}
+      </div>
+    );
+  }
+  
   return (
     <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-100">
       <div>
@@ -54,4 +64,32 @@ export const CardFooter: React.FC<CardFooterProps> = ({ children, className = ''
       {children}
     </div>
   );
+};
+
+// Additional exports for shadcn-ui compatibility
+interface CardTitleProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const CardTitle: React.FC<CardTitleProps> = ({ children, className = '' }) => {
+  return <h3 className={`text-lg font-bold text-gray-900 ${className}`}>{children}</h3>;
+};
+
+interface CardDescriptionProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const CardDescription: React.FC<CardDescriptionProps> = ({ children, className = '' }) => {
+  return <p className={`text-sm text-gray-500 mt-1 ${className}`}>{children}</p>;
+};
+
+interface CardContentProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
+  return <div className={`text-gray-700 ${className}`}>{children}</div>;
 };

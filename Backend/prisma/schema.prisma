@@ -41,6 +41,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  phone     String?  // WhatsApp notification number (format: +1234567890)
   role      Role     @default(STAFF)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -72,14 +73,17 @@ model Supplier {
 }
 
 model Product {
-  id                Int    @id @default(autoincrement())
-  sku               String @unique
-  name              String @unique
+  id                Int       @id @default(autoincrement())
+  sku               String    @unique
+  name              String    @unique
   description       String?
   unitPrice         Float
   costPrice         Float?
-  currentStock      Int    @default(0)
-  lowStockThreshold Int    @default(10)
+  currentStock      Int       @default(0)
+  lowStockThreshold Int       @default(10)
+  expiryDate        DateTime? // Product expiry date for tracking
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   categoryId Int
   supplierId Int?
@@ -226,6 +230,8 @@ model PurchaseOrderItem {
 enum AlertType {
   LOW_STOCK
   OVERSTOCK
+  EXPIRING_SOON
+  EXPIRED
   OTHER
   OUT_OF_STOCK
 }

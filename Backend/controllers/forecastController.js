@@ -182,3 +182,139 @@ export const getLatestForecast = async (productId) => {
         orderBy: { createdAt: "desc" },
     });
 };
+// -------------------------------------------------------
+// 5. RUN FORECAST WITH MODEL SELECTION
+// -------------------------------------------------------
+export const runForecastWithModel = async (req, res) => {
+    const { productId, horizon = 14, modelType = 'auto' } = req.body;
+    const pId = Number(productId);
+
+    if (!pId) return res.status(400).json({ error: "Invalid productId." });
+
+    // Validate model type
+    const validModels = ['auto', 'moving_average', 'exponential_smoothing', 'linear_regression', 'xgboost', 'lstm'];
+    if (!validModels.includes(modelType)) {
+        return res.status(400).json({
+            error: "Invalid modelType.",
+            validModels
+        });
+    }
+
+    try {
+        const historical = await getHistoricalData(pId);
+
+        // Check minimum data requirements based on model
+        const minDataPoints = {
+            'moving_average': 7,
+            'exponential_smoothing': 14,
+            'linear_regression': 30,
+            'xgboost': 60,
+            'lstm': 90,
+            'auto': 14
+        };
+
+        const required = minDataPoints[modelType];
+        if (historical.length < required) {
+            return res.status(400).json({
+                message: `Not enough history for ${modelType}. Need ${required}+ days, have ${historical.length}.`,
+                dataPoints: historical.length,
+                required
+            });
+        }
+
+        // Use local model selector instead of FastAPI
+        const { runForecastModel } = await import('../forecast2/models/modelSelector.js');
+        const forecastResult = await runForecastModel(historical, Number(horizon), modelType);
+
+        // Save forecast to database
+        const saved = await prisma.forecastRun.create({
+            data: {
+                productId: pId,
+                horizon: Number(horizon),
+                forecastJson: {
+                    method: forecastResult.method,
+                    predictions: forecastResult.points,
+                    metrics: forecastResult.metrics,
+                    note: forecastResult.note,
+                    fallback: forecastResult.fallback,
+                    timestamp: new Date().toISOString()
+                },
+            },
+        });
+
+        return res.json({
+            ok: true,
+            message: `Forecast generated using ${forecastResult.method}.`,
+            method: forecastResult.method,
+            metrics: forecastResult.metrics,
+            predictions: forecastResult.points,
+            run: saved,
+            fallback: forecastResult.fallback || false
+        });
+
+    } catch (err) {
+        return handleForecastingError(res, err, "runForecastWithModel");
+    }
+};
+
+// -------------------------------------------------------
+// 6. COMPARE MODELS
+// -------------------------------------------------------
+export const compareModels = async (req, res) => {
+    const { productId, horizon = 14 } = req.body;
+    const pId = Number(productId);
+
+    if (!pId) return res.status(400).json({ error: "Invalid productId." });
+
+    try {
+        const historical = await getHistoricalData(pId);
+
+        if (historical.length < 30) {
+            return res.status(400).json({
+                message: "Need at least 30 days of history to compare models.",
+                dataPoints: historical.length
+            });
+        }
+
+        const { runForecastModel } = await import('../forecast2/models/modelSelector.js');
+
+        // Run multiple models
+        const models = ['exponential_smoothing', 'linear_regression'];
+        
+        // Add XGBoost if enough data
+        if (historical.length >= 60) {
+            models.push('xgboost');
+        }
+
+        const results = [];
+
+        for (const modelType of models) {
+            try {
+                const result = await runForecastModel(historical, Number(horizon), modelType);
+                results.push({
+                    model: result.method,
+                    predictions: result.points,
+                    metrics: result.metrics,
+                    success: true
+                });
+            } catch (error) {
+                results.push({
+                    model: modelType,
+                    error: error.message,
+                    success: false
+                });
+            }
+        }
+
+        return res.json({
+            ok: true,
+            productId: pId,
+            dataPoints: historical.length,
+            horizon,
+            models: results
+        });
+
+    } catch (err) {
+        return handleForecastingError(res, err, "compareModels");
+    }
+};

@@ -1,6 +1,8 @@
 import React from 'react';
 
 interface InputProps {
+  id?: string;
+  name?: string;
   label?: string;
   type?: string;
   placeholder?: string;
@@ -13,6 +15,8 @@ interface InputProps {
 }
 
 export const Input: React.FC<InputProps> = ({
+  id,
+  name,
   label,
   type = 'text',
   placeholder,
@@ -32,6 +36,8 @@ export const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
+        id={id}
+        name={name}
         type={type}
         placeholder={placeholder}
         value={value}

@@ -1,7 +1,8 @@
 import React from 'react';
 
 interface ButtonProps {
-  label: string;
+  label?: string;
+  children?: React.ReactNode;
   icon?: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'outline';
   size?: 'sm' | 'md' | 'lg';
@@ -15,6 +16,7 @@ interface ButtonProps {
 
 export const Button: React.FC<ButtonProps> = ({
   label,
+  children,
   icon,
   variant = 'primary',
   size = 'md',

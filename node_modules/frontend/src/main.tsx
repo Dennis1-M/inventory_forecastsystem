@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import './index.css';
+import { registerServiceWorker, setupInstallPrompt } from './utils/registerServiceWorker';
 
 const queryClient = new QueryClient();
 
@@ -19,3 +20,11 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>
 );
+
+// Register service worker for PWA support
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+  setupInstallPrompt();
+} else {
+  console.log('Service Worker disabled in development mode');
+}

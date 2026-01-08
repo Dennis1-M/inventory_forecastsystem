@@ -128,6 +128,7 @@ app.get("/", (req, res) => {
    START SERVER
 ================================ */
 import { createServer } from 'http';
+import { startExpiryCheckCron } from './cron/checkExpiryAlerts.js';
 import { startForecastScheduler } from './jobs/forecastScheduler.js';
 import { initSockets } from './sockets/index.js';
 
@@ -141,6 +142,9 @@ if (process.env.NODE_ENV !== 'test') {
   // Start forecast scheduler
   startForecastScheduler();
 
+  // Start expiry check cron job
+  startExpiryCheckCron();
+
   server.listen(PORT, () => {
     console.log(`\n🎉 Server running on http://localhost:${PORT}`);
     console.log("🔗 Available endpoints:");
@@ -150,6 +154,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log("   GET  /api/auth/users");
     console.log('🔌 Socket.io server initialized');
     console.log('📊 Forecast scheduler initialized');
+    console.log('⏰ Expiry check cron job initialized');
   });
 }
 

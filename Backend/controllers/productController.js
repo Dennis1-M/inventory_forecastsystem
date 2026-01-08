@@ -14,6 +14,7 @@ export const createProduct = async (req, res) => {
     categoryId,
     supplierId,
     lowStockThreshold,
+    expiryDate,
   } = req.body;
 
   // Basic validation
@@ -50,6 +51,7 @@ export const createProduct = async (req, res) => {
         lowStockThreshold:
           lowStockThreshold !== undefined ? Number(lowStockThreshold) : 10,
         currentStock: 0,
+        ...(expiryDate && { expiryDate: new Date(expiryDate) }),
       },
     });
 
@@ -185,6 +187,7 @@ export const updateProduct = async (req, res) => {
     categoryId,
     supplierId,
     lowStockThreshold,
+    expiryDate,
   } = req.body;
 
   try {
@@ -208,6 +211,7 @@ export const updateProduct = async (req, res) => {
         ...(categoryId !== undefined && { categoryId: Number(categoryId) }),
         ...(supplierId !== undefined && { supplierId: supplierId ? Number(supplierId) : null }),
         ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
+        ...(expiryDate !== undefined && { expiryDate: expiryDate ? new Date(expiryDate) : null }),
       },
       include: { category: true, supplier: true },
     });

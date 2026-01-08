@@ -81,16 +81,41 @@ const RestockTrackingPage = () => {
     try {
       // Use the correct backend endpoint for updating purchase order status
       if (newStatus === 'received') {
-        await apiService.post(`/purchase-orders/${orderId}/receive`, {});
+        // First fetch the full purchase order to get all items
+        const poResponse = await apiService.get(`/purchase-orders/${orderId}`);
+        const purchaseOrder = poResponse.data;
+        
+        // Prepare items array with all items to be received
+        const items = purchaseOrder.items.map((item: any) => ({
+          itemId: item.id,
+          quantityReceived: item.quantityOrdered - item.quantityReceived // Receive remaining quantity
+        }));
+        
+        // Send receive request with items
+        await apiService.post(`/purchase-orders/${orderId}/receive`, { items });
+        
+        // Refresh the orders list after successful receive
+        const response = await apiService.get('/purchase-orders');
+        const orders = Array.isArray(response.data?.data) ? response.data.data : [];
+        
+        const restockData: RestockOrder[] = orders.map((order: any) => ({
+          id: order.id.toString(),
+          productId: order.items?.[0]?.productId || 0,
+          productName: order.items?.[0]?.product?.name || 'Unknown',
+          currentStock: order.items?.[0]?.product?.currentStock || 0,
+          reorderLevel: order.items?.[0]?.product?.lowStockThreshold || 0,
+          quantityOrdered: order.items?.[0]?.quantityOrdered || 0,
+          status: order.status?.toLowerCase() || 'pending',
+          orderDate: new Date(order.createdAt).toLocaleDateString(),
+          expectedDate: new Date(order.expectedDate || Date.now()).toLocaleDateString(),
+          supplier: order.supplier?.name || 'Unknown Supplier',
+        }));
+        
+        setRestockOrders(restockData);
       } else {
         // For other status updates, would need additional backend endpoints
         console.warn('Status update not fully implemented for status:', newStatus);
       }
-      setRestockOrders(prev => 
-        prev.map(order => 
-          order.id === orderId ? { ...order, status: newStatus as any } : order
-        )
-      );
     } catch (err) {
       console.error('Failed to update order:', err);
     }

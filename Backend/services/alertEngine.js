@@ -5,6 +5,7 @@
 
 import { prisma } from "../prismaClient.js";
 import { emitAlert } from "../sockets/index.js";
+import { sendLowStockAlert, sendOverstockAlert } from "./emailService.js";
 import {
     evaluateExpiryRisk,
     evaluateOverstockRisk,
@@ -29,6 +30,15 @@ export async function runAlertEngineForProduct(productId) {
   });
   if (!forecastRun || forecastRun.points.length === 0) return;
 
+  // Get admin users for email and WhatsApp notifications
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      role: { in: ['ADMIN', 'SUPERADMIN', 'MANAGER'] },
+      isActive: true,
+    },
+    select: { email: true, phone: true },
+  });
+
   // Evaluate risks
   const stockoutRisk = evaluateStockoutRisk(product, forecastRun.points);
   const overstockRisk = evaluateOverstockRisk(product, forecastRun.points);
@@ -49,19 +59,41 @@ export async function runAlertEngineForProduct(productId) {
   // STOCKOUT / LOW STOCK ALERTS
   // ---------------------------------
   if (stockoutRisk.level === "HIGH") {
-    await createOrUpdateAlert(
+    const created = await createOrUpdateAlert(
       productId,
       "OUT_OF_STOCK",
       { reason: "High risk of stockout based on forecast", riskScore: 100 },
       existingAlerts
     );
+    
+    if (created) {
+      for (const admin of adminUsers) {
+        // Send email notification
+        await sendLowStockAlert(admin.email, product);
+        // Send WhatsApp notification if phone number is available
+        if (admin.phone) {
+          await sendWhatsAppOutOfStockAlert(admin.phone, product);
+        }
+      }
+    }
   } else if (stockoutRisk.level === "MEDIUM") {
-    await createOrUpdateAlert(
+    const created = await createOrUpdateAlert(
       productId,
       "LOW_STOCK",
       { reason: "Stock likely to fall below reorder point", riskScore: 60 },
       existingAlerts
     );
+    
+    if (created) {
+      for (const admin of adminUsers) {
+        // Send email notification
+        await sendLowStockAlert(admin.email, product);
+        // Send WhatsApp notification if phone number is available
+        if (admin.phone) {
+          await sendWhatsAppLowStockAlert(admin.phone, product);
+        }
+      }
+    }
   } else {
     await resolveAlerts(productId, ["LOW_STOCK", "OUT_OF_STOCK"]);
   }
@@ -70,12 +102,23 @@ export async function runAlertEngineForProduct(productId) {
   // OVERSTOCK ALERT
   // ---------------------------------
   if (overstockRisk.level === "MEDIUM") {
-    await createOrUpdateAlert(
+    const created = await createOrUpdateAlert(
       productId,
       "OVERSTOCK",
       { reason: "Stock exceeds forecasted demand", riskScore: 60 },
       existingAlerts
     );
+    
+    if (created) {
+      for (const admin of adminUsers) {
+        // Send email notification
+        await sendOverstockAlert(admin.email, product);
+        // Send WhatsApp notification if phone number is available
+        if (admin.phone) {
+          await sendWhatsAppOverstockAlert(admin.phone, product);
+        }
+      }
+    }
   } else {
     await resolveAlerts(productId, ["OVERSTOCK"]);
   }
@@ -102,12 +145,14 @@ async function createOrUpdateAlert(productId, type, evaluation, existingAlerts) 
       }
     });
     try { emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt }); } catch (e) { console.warn('Emit alert failed', e.message); }
+    return true; // Alert created
   } else {
     // Update existing alert
     await prisma.alert.update({
       where: { id: exists.id },
       data: { message: alertMessage }
     });
+    return false; // Alert updated, not created
   }
 }
 

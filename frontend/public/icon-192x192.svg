@@ -1,0 +1,13 @@
+<!-- Simple SVG icon for 192x192 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#3b82f6" rx="20"/>
+  <g fill="white">
+    <!-- Package Icon -->
+    <path d="M96 40L50 65v55l46 25 46-25V65L96 40zm0 10l36 19.5v39L96 128l-36-19.5v-39L96 50z"/>
+    <path d="M96 75v53M72 87l48 26M72 113l48-26"/>
+    <circle cx="96" cy="75" r="4"/>
+  </g>
+  <text x="96" y="170" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">
+    Inventory AI
+  </text>
+</svg>
