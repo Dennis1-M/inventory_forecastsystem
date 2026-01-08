@@ -226,7 +226,7 @@ export const useForecast = () => {
   return { forecast, loading, error, refetch: fetchForecast };
 };
 
-export const useSalesAnalytics = () => {
+export const useSalesAnalytics = (dateRange?: string) => {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +234,9 @@ export const useSalesAnalytics = () => {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const response = await apiService.get('/dashboard/sales-analytics');
+        setLoading(true);
+        const params = dateRange ? { period: dateRange } : {};
+        const response = await apiService.get('/dashboard/sales-analytics', { params });
         setAnalytics(response.data);
         setError(null);
       } catch (err) {
@@ -246,7 +248,7 @@ export const useSalesAnalytics = () => {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [dateRange]);
 
   return { analytics, loading, error };
 };

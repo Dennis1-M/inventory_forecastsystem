@@ -5,6 +5,7 @@ import { DashboardLayout } from '../../components/layout';
 import { Card } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import apiService from '../../services/api';
+import ProfilePage from '../admin/ProfilePage';
 import AdvancedAnalyticsDashboard from './AdvancedAnalyticsDashboard';
 import AlertsPage from './AlertsPage';
 import AnalyticsPage from './AnalyticsPage';
@@ -12,6 +13,7 @@ import ForecastingPage from './ForecastingPage';
 import InventoryPage from './InventoryPage';
 import ManagerReportsPage from './ManagerReportsPage';
 import RestockTrackingPage from './RestockTrackingPage';
+import SalesAnalyticsPage from './SalesAnalyticsPage';
 import StaffOversightPage from './StaffOversightPage';
 import StockLevelMonitoringPage from './StockLevelMonitoringPage';
 import SuppliersPage from './SuppliersPage';
@@ -75,7 +77,8 @@ const ManagerDashboard: React.FC = () => {
     { icon: <Package className="h-5 w-5" />, label: 'Inventory Management', id: 'inventory' },
     { icon: <AlertCircle className="h-5 w-5" />, label: 'Low Stock Orders', id: 'stock-monitoring' },
     { icon: <ShoppingCart className="h-5 w-5" />, label: 'Restock Tracking', id: 'restock' },
-    { icon: <TrendingUp className="h-5 w-5" />, label: 'Sales Analytics', id: 'analytics' },
+    { icon: <TrendingUp className="h-5 w-5" />, label: '📊 Sales Analytics (NEW)', id: 'sales-analytics' },
+    { icon: <BarChart3 className="h-5 w-5" />, label: 'Charts & Graphs', id: 'analytics' },
     { icon: <Lightbulb className="h-5 w-5" />, label: '✨ Advanced Analytics (15 Features)', id: 'advanced' },
     { icon: <Zap className="h-5 w-5" />, label: 'Forecast Model', id: 'forecasting' },
     { icon: <Bell className="h-5 w-5" />, label: 'Alerts', id: 'alerts' },
@@ -93,6 +96,7 @@ const ManagerDashboard: React.FC = () => {
         userName={user?.name || 'Manager'}
         userRole="MANAGER"
         onLogout={handleLogout}
+        onProfileClick={() => setActiveTab('profile')}
       >
         <div className="p-6 text-center">Loading dashboard...</div>
       </DashboardLayout>
@@ -109,6 +113,7 @@ const ManagerDashboard: React.FC = () => {
       userName={user?.name || 'Manager'}
       userRole="MANAGER"
       onLogout={handleLogout}
+      onProfileClick={() => setActiveTab('profile')}
     >
       {activeTab === 'overview' && (
         <div className="space-y-6">
@@ -309,6 +314,7 @@ const ManagerDashboard: React.FC = () => {
       {activeTab === 'inventory' && <InventoryPage />}
       {activeTab === 'stock-monitoring' && <StockLevelMonitoringPage />}
       {activeTab === 'restock' && <RestockTrackingPage />}
+      {activeTab === 'sales-analytics' && <SalesAnalyticsPage />}
       {activeTab === 'analytics' && <AnalyticsPage />}
       {activeTab === 'advanced' && <AdvancedAnalyticsDashboard inventory={inventory} sales={sales} />}
       {activeTab === 'forecasting' && <ForecastingPage />}
@@ -316,6 +322,7 @@ const ManagerDashboard: React.FC = () => {
       {activeTab === 'notifications' && <SystemNotificationsPage />}
       {activeTab === 'reports' && <ManagerReportsPage />}
       {activeTab === 'alerts' && <AlertsPage />}
+      {activeTab === 'profile' && <ProfilePage />}
     </DashboardLayout>
   );
 };

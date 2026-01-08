@@ -1,4 +1,4 @@
-import { Activity, Clock } from 'lucide-react';
+import { Activity, Clock, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import apiService from '../../services/api';
 
@@ -18,6 +18,7 @@ const ActivityLogsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'login' | 'create' | 'update' | 'delete'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -39,9 +40,14 @@ const ActivityLogsPage = () => {
     fetchLogs();
   }, []);
 
-  const filteredLogs = filter === 'all' 
-    ? logs 
-    : logs.filter(log => log.action.includes(filter.toUpperCase()));
+  const filteredLogs = logs.filter(log => {
+    const matchesFilter = filter === 'all' || log.action.includes(filter.toUpperCase());
+    const matchesSearch = searchQuery === '' ||
+                         log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         log.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         log.userEmail?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const getActionColor = (action: string) => {
     if (action.includes('LOGIN')) return 'text-blue-600';
@@ -81,6 +87,18 @@ const ActivityLogsPage = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+        <input
+          type="text"
+          placeholder="Search by action, description, or user email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       {error && !logs.length && (

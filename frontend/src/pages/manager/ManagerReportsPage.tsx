@@ -7,23 +7,44 @@ const ManagerReportsPage = () => {
   const { inventory, loading: inventoryLoading } = useInventory();
   const { analytics, loading: analyticsLoading } = useSalesAnalytics();
   const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'json' | 'excel' | 'pdf'>('excel');
 
   const loading = inventoryLoading || analyticsLoading;
 
-  const handleExportReport = async (type: 'inventory' | 'sales' | 'forecast' | 'comprehensive') => {
+  const handleExportReport = async (type: 'inventory' | 'sales' | 'staff-performance' | 'alerts') => {
     try {
       setExporting(true);
-      const response = await apiService.post('/reports/manager-export', { type });
+      
+      const response = await apiService.post('/reports/manager-export', 
+        { type, format: exportFormat },
+        { responseType: exportFormat === 'json' ? 'json' : 'blob' }
+      );
 
-      const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `manager-report-${type}-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      if (exportFormat === 'json') {
+        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${type}-report-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        // For Excel and PDF (blob response)
+        const blob = new Blob([response.data], { 
+          type: exportFormat === 'excel' 
+            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            : 'application/pdf' 
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${type}-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : 'pdf'}`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (err) {
       console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -77,6 +98,44 @@ const ManagerReportsPage = () => {
           <Download className="h-5 w-5" />
           Generate & Export Reports
         </h3>
+        
+        {/* Format Selection */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Export Format:</label>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setExportFormat('excel')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                exportFormat === 'excel'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              📊 Excel (.xlsx)
+            </button>
+            <button
+              onClick={() => setExportFormat('pdf')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                exportFormat === 'pdf'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              📄 PDF
+            </button>
+            <button
+              onClick={() => setExportFormat('json')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                exportFormat === 'json'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              📋 JSON
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => handleExportReport('inventory')}
@@ -84,7 +143,7 @@ const ManagerReportsPage = () => {
             className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 font-medium"
           >
             <Download className="h-4 w-4" />
-            {exporting ? 'Exporting...' : 'Inventory Report'}
+            {exporting ? 'Exporting...' : 'Inventory Movement Report'}
           </button>
           <button
             onClick={() => handleExportReport('sales')}
@@ -95,20 +154,20 @@ const ManagerReportsPage = () => {
             {exporting ? 'Exporting...' : 'Sales Report'}
           </button>
           <button
-            onClick={() => handleExportReport('forecast')}
+            onClick={() => handleExportReport('staff-performance')}
             disabled={exporting}
             className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg disabled:opacity-50 font-medium"
           >
             <Download className="h-4 w-4" />
-            {exporting ? 'Exporting...' : 'Forecast Report'}
+            {exporting ? 'Exporting...' : 'Staff Performance Report'}
           </button>
           <button
-            onClick={() => handleExportReport('comprehensive')}
+            onClick={() => handleExportReport('alerts')}
             disabled={exporting}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg disabled:opacity-50 font-medium"
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50 font-medium"
           >
             <Download className="h-4 w-4" />
-            {exporting ? 'Exporting...' : 'Comprehensive Report'}
+            {exporting ? 'Exporting...' : 'Alerts Report'}
           </button>
         </div>
       </div>

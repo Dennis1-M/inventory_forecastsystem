@@ -5,6 +5,7 @@ import { DashboardLayout } from '../../components/layout';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityLogsPage from './ActivityLogsPage';
 import InventoryOversightPage from './InventoryOversightPage';
+import ProfilePage from './ProfilePage';
 import ReportsAnalyticsPage from './ReportsAnalyticsPage';
 import SalesMonitoringPage from './SalesMonitoringPage';
 import SettingsPage from './SettingsPage';
@@ -42,6 +43,7 @@ const AdminDashboard: React.FC = () => {
       userName="Admin User"
       userRole="ADMIN"
       onLogout={handleLogout}
+      onProfileClick={() => setActiveTab('profile')}
     >
       {activeTab === 'dashboard' && (
         <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
@@ -80,6 +82,7 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'activity' && <ActivityLogsPage />}
       {activeTab === 'health' && <SystemHealthPage />}
       {activeTab === 'settings' && <SettingsPage />}
+      {activeTab === 'profile' && <ProfilePage />}
     </DashboardLayout>
   );
 };

@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import AddUserForm from '../../components/admin/AddUserForm';
 import EditUserForm from '../../components/admin/EditUserForm';
@@ -19,6 +19,8 @@ const UserManagementPage = () => {
   const [isEditUserModalOpen, setEditUserModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const { users, loading, error, refetch } = useUsers();
 
@@ -43,6 +45,14 @@ const UserManagementPage = () => {
     }
   };
 
+  // Filter users based on search query and role
+  const filteredUsers = users?.filter((user: User) => {
+    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    return matchesSearch && matchesRole;
+  }) || [];
+
   return (
     <>
       <div>
@@ -55,6 +65,31 @@ const UserManagementPage = () => {
             <Plus size={20} className="mr-2" />
             Add User
           </button>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div className="mb-4 flex gap-4 items-center">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <input
+              type="text"
+              placeholder="Search users by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Roles</option>
+            <option value="SUPERADMIN">Super Admin</option>
+            <option value="ADMIN">Admin</option>
+            <option value="MANAGER">Manager</option>
+            <option value="STAFF">Staff</option>
+          </select>
         </div>
 
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -105,7 +140,7 @@ const UserManagementPage = () => {
                   </td>
                 </tr>
               )}
-              {users && users.length > 0 && users.map((user: User) => (
+              {filteredUsers && filteredUsers.length > 0 && filteredUsers.map((user: User) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>

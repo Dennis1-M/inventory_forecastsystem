@@ -1,20 +1,46 @@
-import { Activity, AlertCircle, BarChart3, Target, TrendingUp } from 'lucide-react';
-import React, { useMemo } from 'react';
+import { Activity, AlertCircle, BarChart3, RefreshCw, Target, TrendingUp, Zap } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
 } from 'recharts';
 import { Button, Card, CardBody, CardHeader, Table } from '../../components/ui';
 import { useForecast } from '../../hooks';
+import apiService from '../../services/api';
 
 const ForecastingPage: React.FC = () => {
   const { forecast, loading, error, refetch } = useForecast();
+  const [generating, setGenerating] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState('');
+
+  const handleGenerateForecasts = async () => {
+    try {
+      setGenerating(true);
+      setGenerateMessage('Generating forecasts...');
+      
+      const response = await apiService.post('/forecast/trigger-all', { horizon: 14 });
+      
+      if (response.data.ok) {
+        setGenerateMessage(`✓ Generated ${response.data.successful} forecasts successfully`);
+        // Refresh the data after a short delay
+        setTimeout(() => {
+          refetch();
+          setGenerateMessage('');
+        }, 2000);
+      }
+    } catch (err: any) {
+      setGenerateMessage(`✗ Error: ${err.response?.data?.error || err.message}`);
+      setTimeout(() => setGenerateMessage(''), 5000);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   // Use real data from API
   const forecastData = forecast?.forecastData || [];
@@ -125,13 +151,35 @@ const ForecastingPage: React.FC = () => {
           <h2 className="text-3xl font-bold">Demand Forecasting</h2>
           <p className="text-gray-600 mt-2">AI-powered demand predictions with 95% confidence intervals</p>
         </div>
-        <Button
-          label="Refresh Forecast"
-          variant="primary"
-          icon={<TrendingUp className="h-5 w-5" />}
-          onClick={refetch}
-        />
+        <div className="flex gap-3">
+          <Button
+            label={generating ? "Generating..." : "Generate Forecasts"}
+            variant="secondary"
+            icon={<Zap className="h-5 w-5" />}
+            onClick={handleGenerateForecasts}
+            disabled={generating}
+          />
+          <Button
+            label="Refresh"
+            variant="primary"
+            icon={<RefreshCw className="h-5 w-5" />}
+            onClick={refetch}
+          />
+        </div>
       </div>
+
+      {/* Generation message */}
+      {generateMessage && (
+        <div className={`mb-4 p-4 rounded-lg ${
+          generateMessage.startsWith('✓') 
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : generateMessage.startsWith('✗')
+            ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-blue-50 text-blue-700 border border-blue-200'
+        }`}>
+          {generateMessage}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -196,7 +244,30 @@ const ForecastingPage: React.FC = () => {
         </Card>
       </div>
 
+      {/* Show empty state if no forecast data */}
+      {(!forecastData || forecastData.length === 0) && !loading && (
+        <Card className="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50">
+          <CardBody>
+            <div className="text-center py-12">
+              <Zap className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">No Forecasts Available Yet</h3>
+              <p className="text-gray-600 mb-6">
+                Generate AI-powered demand forecasts to get started with predictive analytics.
+              </p>
+              <Button
+                label={generating ? "Generating..." : "Generate Forecasts Now"}
+                variant="primary"
+                icon={<Zap className="h-5 w-5" />}
+                onClick={handleGenerateForecasts}
+                disabled={generating}
+              />
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Forecast Chart with Confidence Intervals */}
+      {chartData.length > 0 && (
       <Card className="mb-8">
         <CardHeader
           title="Aggregate Demand Forecast (14-Day)"
@@ -266,6 +337,7 @@ const ForecastingPage: React.FC = () => {
           )}
         </CardBody>
       </Card>
+      )}
 
       {/* High Risk Items */}
       {highRiskItems.length > 0 && (

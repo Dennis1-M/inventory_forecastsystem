@@ -128,6 +128,7 @@ app.get("/", (req, res) => {
    START SERVER
 ================================ */
 import { createServer } from 'http';
+import { runAutoReorderOnStartup, startAutoReorderCron } from './cron/autoReorderCron.js';
 import { startExpiryCheckCron } from './cron/checkExpiryAlerts.js';
 import { startForecastScheduler } from './jobs/forecastScheduler.js';
 import { initSockets } from './sockets/index.js';
@@ -145,6 +146,10 @@ if (process.env.NODE_ENV !== 'test') {
   // Start expiry check cron job
   startExpiryCheckCron();
 
+  // Start auto-reorder cron job and run initial check
+  startAutoReorderCron();
+  runAutoReorderOnStartup();
+
   server.listen(PORT, () => {
     console.log(`\n🎉 Server running on http://localhost:${PORT}`);
     console.log("🔗 Available endpoints:");
@@ -155,6 +160,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('🔌 Socket.io server initialized');
     console.log('📊 Forecast scheduler initialized');
     console.log('⏰ Expiry check cron job initialized');
+    console.log('🔄 Auto-reorder system initialized');
   });
 }
 

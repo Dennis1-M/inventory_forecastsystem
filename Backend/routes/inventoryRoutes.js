@@ -6,6 +6,8 @@ import {
     getInventorySummary,
     getLowStockAlerts,
     receiveStock,
+    triggerAutoReorder,
+    updateProductAutoReorder,
 } from "../controllers/inventoryController.js";
 
 import { createCycleCount, getCycleCount, listCycleCounts } from "../controllers/cycleCountController.js";
@@ -43,5 +45,11 @@ router.get("/low-stock", getLowStockAlerts);
 
 // Inventory summary
 router.get("/summary", getInventorySummary);
+
+// Update auto-reorder settings for a product
+router.put("/auto-reorder/:productId", updateProductAutoReorder);
+
+// Manually trigger auto-reorder check
+router.post("/trigger-auto-reorder", triggerAutoReorder);
 
 export default router;

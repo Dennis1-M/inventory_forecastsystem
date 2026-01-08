@@ -6,6 +6,7 @@ interface TopbarProps {
   userRole?: string;
   notifications?: number;
   onLogout?: () => void;
+  onProfileClick?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -13,6 +14,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   userRole = 'Staff',
   notifications = 0,
   onLogout,
+  onProfileClick,
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -59,7 +61,15 @@ export const Topbar: React.FC<TopbarProps> = ({
             {/* Dropdown Menu */}
             {isProfileOpen && (
               <div className="absolute right-0 mt-3 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 animation-fade-in">
-                <button className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                <button 
+                  onClick={() => {
+                    if (onProfileClick) {
+                      onProfileClick();
+                      setIsProfileOpen(false);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                >
                   <User className="h-4 w-4 text-slate-400" />
                   <span className="font-medium">Profile Settings</span>
                 </button>

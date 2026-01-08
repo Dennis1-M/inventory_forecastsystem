@@ -352,3 +352,107 @@ export const getInventorySummary = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch inventory summary", error: error.message });
   }
 };
+
+/**
+ * UPDATE PRODUCT AUTO-REORDER SETTINGS
+ * PUT /api/inventory/auto-reorder/:productId
+ * Body: { autoReorderEnabled, reorderPoint, reorderQuantity }
+ */
+export const updateProductAutoReorder = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { autoReorderEnabled, reorderPoint, reorderQuantity } = req.body;
+
+    // Validate input
+    if (reorderPoint !== undefined && reorderPoint < 0) {
+      return res.status(400).json({ message: "Reorder point must be >= 0" });
+    }
+    if (reorderQuantity !== undefined && reorderQuantity <= 0) {
+      return res.status(400).json({ message: "Reorder quantity must be > 0" });
+    }
+
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Update settings using service
+    const updated = await updateAutoReorderSettings(parseInt(productId), {
+      autoReorderEnabled,
+      reorderPoint,
+      reorderQuantity
+    });
+
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        action: "UPDATE_AUTO_REORDER",
+        details: `Updated auto-reorder settings for ${product.name}: enabled=${autoReorderEnabled}, reorderPoint=${reorderPoint}, reorderQuantity=${reorderQuantity}`
+      }
+    });
+
+    // Emit socket update
+    try {
+      emitProductUpdate({
+        id: updated.id,
+        name: updated.name,
+        currentStock: updated.currentStock,
+        autoReorderEnabled: updated.autoReorderEnabled,
+        reorderPoint: updated.reorderPoint,
+        reorderQuantity: updated.reorderQuantity
+      });
+    } catch (e) {
+      console.warn('Failed to emit product update via socket', e.message);
+    }
+
+    res.status(200).json({
+      message: "Auto-reorder settings updated successfully",
+      product: updated
+    });
+  } catch (error) {
+    console.error("Error updating auto-reorder settings:", error);
+    res.status(500).json({ 
+      message: "Failed to update auto-reorder settings", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * MANUALLY TRIGGER AUTO-REORDER CHECK
+ * POST /api/inventory/trigger-auto-reorder
+ * Runs the auto-reorder logic immediately (useful for testing or manual triggers)
+ */
+export const triggerAutoReorder = async (req, res) => {
+  try {
+    console.log("🔄 Manual auto-reorder check triggered by user:", req.user.email);
+    
+    const result = await checkAndCreateAutoReorders();
+    
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        action: "TRIGGER_AUTO_REORDER",
+        details: `Manual auto-reorder check: ${result.ordersCreated} orders created for ${result.productsProcessed} products`
+      }
+    });
+
+    res.status(200).json({
+      message: "Auto-reorder check completed successfully",
+      result
+    });
+  } catch (error) {
+    console.error("Error triggering auto-reorder:", error);
+    res.status(500).json({ 
+      message: "Failed to trigger auto-reorder", 
+      error: error.message 
+    });
+  }
+};
+

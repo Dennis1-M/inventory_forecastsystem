@@ -81,6 +81,9 @@ model Product {
   costPrice         Float?
   currentStock      Int       @default(0)
   lowStockThreshold Int       @default(10)
+  reorderPoint      Int       @default(20)  // When to trigger auto-reorder
+  reorderQuantity   Int       @default(50)  // How many to order
+  autoReorderEnabled Boolean  @default(false) // Enable/disable auto-reorder per product
   expiryDate        DateTime? // Product expiry date for tracking
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

@@ -135,6 +135,56 @@ router.get("/", protect, async (req, res) => {
   }
 });
 
+// Trigger forecasts for all products
+router.post("/trigger-all", protect, async (req, res) => {
+  try {
+    const horizon = Number(req.body.horizon) || 14;
+
+    // Get all products with sales
+    const products = await prisma.product.findMany({
+      include: {
+        _count: {
+          select: { saleItems: true }
+        }
+      }
+    });
+
+    const productsWithSales = products.filter(p => p._count.saleItems > 0);
+    
+    let successful = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const product of productsWithSales) {
+      try {
+        const forecast = await runProductForecast(product.id, horizon);
+        
+        if (forecast) {
+          successful++;
+        } else {
+          failed++;
+          errors.push({ productId: product.id, productName: product.name, error: 'Insufficient data' });
+        }
+      } catch (error) {
+        failed++;
+        errors.push({ productId: product.id, productName: product.name, error: error.message });
+      }
+    }
+
+    res.json({ 
+      ok: true, 
+      message: `Generated forecasts for ${successful} products`,
+      successful,
+      failed,
+      total: productsWithSales.length,
+      errors: errors.slice(0, 10) // Only return first 10 errors
+    });
+  } catch (err) {
+    console.error("POST /forecast/trigger-all error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Manually trigger forecast for a specific product
 router.post("/trigger/:productId", protect, async (req, res) => {
   try {

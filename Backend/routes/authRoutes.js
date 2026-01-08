@@ -4,11 +4,13 @@ import {
     deleteUser,
     getAllUsers,
     getMe,
+    getProfile,
     loginUser,
     logoutUser,
     registerPublic,
     registerSuperAdmin,
     registerUser,
+    updateProfile,
     updateUserStatus,
     verifyToken
 } from "../controllers/authController.js";
@@ -26,6 +28,10 @@ router.get("/check-superadmin", checkSuperAdminExists);
 router.get("/verify", protect, verifyToken);
 router.get("/me", protect, getMe);
 router.post("/logout", protect, logoutUser);
+
+// Profile management (any authenticated user)
+router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
 
 // User management
 router.get("/users", protect, allowRoles("SUPERADMIN", "ADMIN"), getAllUsers);

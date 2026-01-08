@@ -4,25 +4,26 @@ import { Badge, Button, Card, CardBody, CardHeader, Input, Loading, Table } from
 import { useInventory } from '../../hooks';
 
 const InventoryPage: React.FC = () => {
-  const { inventory, loading, error } = useInventory();
+  const { inventory, loading, error, refetch } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'in-stock' | 'low-stock' | 'out-of-stock'>('all');
 
   // Filter inventory based on search and status
   const filteredInventory = (inventory || []).filter((item: any) => {
-    const matchesSearch = item.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.productId?.toString().includes(searchTerm);
+    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.id?.toString().includes(searchTerm);
     const matchesStatus = filterStatus === 'all' ||
-      (filterStatus === 'in-stock' && item.currentStock > item.reorderLevel + 50) ||
-      (filterStatus === 'low-stock' && item.currentStock <= item.reorderLevel + 50 && item.currentStock > 0) ||
-      (filterStatus === 'out-of-stock' && item.currentStock === 0);
+      (filterStatus === 'in-stock' && item.status === 'in-stock') ||
+      (filterStatus === 'low-stock' && item.status === 'low-stock') ||
+      (filterStatus === 'out-of-stock' && item.status === 'out-of-stock');
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (item: any) => {
-    if (item.currentStock === 0) {
+  const getStatusBadge = (status: string) => {
+    if (status === 'out-of-stock') {
       return <Badge label="Out of Stock" variant="danger" size="sm" />;
-    } else if (item.currentStock <= item.reorderLevel + 50) {
+    } else if (status === 'low-stock') {
       return <Badge label="Low Stock" variant="warning" size="sm" />;
     } else {
       return <Badge label="In Stock" variant="success" size="sm" />;
@@ -33,23 +34,23 @@ const InventoryPage: React.FC = () => {
     { key: 'productName', label: 'Product Name', width: '30%' },
     { key: 'currentStock', label: 'Current Stock', width: '15%' },
     { key: 'reorderLevel', label: 'Reorder Level', width: '15%' },
-    { key: 'lastRestocked', label: 'Last Restocked', width: '20%' },
-    { key: 'status', label: 'Status', width: '20%' },
+    { key: 'category', label: 'Category', width: '15%' },
+    { key: 'status', label: 'Status', width: '15%' },
   ];
 
   const tableData = filteredInventory.map((item: any) => ({
-    productName: item.productName || 'N/A',
-    currentStock: `${item.currentStock} units`,
-    reorderLevel: `${item.reorderLevel} units`,
-    lastRestocked: item.lastRestocked ? new Date(item.lastRestocked).toLocaleDateString() : 'Never',
-    status: getStatusBadge(item),
+    productName: item.name || 'N/A',
+    currentStock: `${item.quantity || 0} units`,
+    reorderLevel: `${item.lowStockThreshold || 0} units`,
+    category: item.category || 'N/A',
+    status: getStatusBadge(item.status),
   }));
 
   const stats = {
     totalProducts: inventory?.length || 0,
-    lowStockCount: (inventory || []).filter((item: any) => item.currentStock <= item.reorderLevel + 50).length,
-    outOfStockCount: (inventory || []).filter((item: any) => item.currentStock === 0).length,
-    totalValue: (inventory || []).reduce((sum: number, item: any) => sum + ((item.currentStock || 0) * (item.unitPrice || 0)), 0),
+    lowStockCount: (inventory || []).filter((item: any) => item.status === 'low-stock').length,
+    outOfStockCount: (inventory || []).filter((item: any) => item.status === 'out-of-stock').length,
+    totalValue: (inventory || []).reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.price || 0)), 0),
   };
 
   return (
@@ -137,6 +138,7 @@ const InventoryPage: React.FC = () => {
               variant="secondary"
               icon={<RefreshCw className="h-4 w-4" />}
               size="sm"
+              onClick={() => refetch()}
             />
           }
         />

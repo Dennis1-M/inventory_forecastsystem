@@ -17,6 +17,7 @@ interface DashboardLayoutProps {
   userRole?: string;
   notifications?: number;
   onLogout?: () => void;
+  onProfileClick?: () => void;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -30,6 +31,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   userRole,
   notifications,
   onLogout,
+  onProfileClick,
 }) => {
   return (
     <div className="flex h-screen bg-gray-50">
@@ -45,7 +47,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 pt-20 lg:pt-16">
         {/* Topbar */}
-        <Topbar userName={userName} userRole={userRole} notifications={notifications} onLogout={onLogout} />
+        <Topbar userName={userName} userRole={userRole} notifications={notifications} onLogout={onLogout} onProfileClick={onProfileClick} />
 
         {/* Content Area */}
         <div className="overflow-auto p-6">{children}</div>

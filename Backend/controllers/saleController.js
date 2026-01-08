@@ -174,8 +174,8 @@ export const getSales = async (req, res) => {
       prisma.sale.findMany({
         where,
         include: {
-          items: { include: { product: { select: { name: true, sku: true, unitPrice: true } } } },
-          user: { select: { name: true } },
+          items: { include: { product: { select: { name: true, sku: true, unitPrice: true, category: { select: { name: true } } } } } },
+          user: { select: { name: true, role: true } },
         },
         orderBy: { createdAt: "desc" },
         skip,
