@@ -17,18 +17,47 @@ import { useSalesAnalytics } from '../../hooks';
 
 const AnalyticsPage: React.FC = () => {
   const [dateRange, setDateRange] = useState('30d');
+  const [exporting, setExporting] = useState(false);
   const { analytics, loading, error } = useSalesAnalytics(dateRange);
+
+  const handleExportReport = async () => {
+    try {
+      setExporting(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5001/api/export/sales', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sales-report-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Failed to export report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Use real data from API or fallback to mock
   const dailySalesData = analytics?.dailySalesData || [];
 
   const categoryData = analytics?.categoryData || [];
 
-  const paymentData = analytics?.paymentData || [
-    { name: 'Cash', value: 35 },
-    { name: 'M-Pesa', value: 45 },
-    { name: 'Card', value: 20 },
-  ];
+  const paymentData = analytics?.paymentData || [];
 
   const COLORS = ['#4f46e5', '#06b6d4', '#10b981'];
 
@@ -93,7 +122,8 @@ const AnalyticsPage: React.FC = () => {
           label="Export Report" 
           variant="primary" 
           icon={<Download className="h-5 w-5" />}
-          disabled={loading}
+          disabled={loading || exporting}
+          onClick={handleExportReport}
         />
       </div>
 

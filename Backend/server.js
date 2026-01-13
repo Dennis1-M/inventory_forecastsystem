@@ -77,6 +77,7 @@ await loadRoute("./routes/activityLogsRoutes.js", "activity-logs");
 await loadRoute("./routes/staffActivitiesRoutes.js", "staff-activities");
 await loadRoute("./routes/reportsRoutes.js", "reports");
 await loadRoute("./routes/apiRoutes.js", "api");
+await loadRoute("./routes/analyticsRoutes.js", "analytics");
 
 /* ===============================
    TEST / HEALTH ROUTES

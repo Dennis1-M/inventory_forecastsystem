@@ -5,8 +5,8 @@ import { allowRoles } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-router.get('/sales', protect, allowRoles('ADMIN', 'SUPERADMIN'), exportSales);
-router.get('/inventory', protect, allowRoles('ADMIN', 'SUPERADMIN'), exportInventory);
-router.get('/products', protect, allowRoles('ADMIN', 'SUPERADMIN'), exportProducts);
+router.get('/sales', protect, allowRoles('ADMIN', 'SUPERADMIN', 'MANAGER'), exportSales);
+router.get('/inventory', protect, allowRoles('ADMIN', 'SUPERADMIN', 'MANAGER'), exportInventory);
+router.get('/products', protect, allowRoles('ADMIN', 'SUPERADMIN', 'MANAGER'), exportProducts);
 
 export default router;

@@ -74,7 +74,7 @@ router.get("/", protect, async (req, res) => {
         category: p.category?.name || 'Uncategorized',
         currentStock: p.currentStock,
         lowStockThreshold: p.lowStockThreshold,
-        forecastedDemand: Math.round(forecastedDemand * 10) / 10,
+        forecastedDemand: Math.round(forecastedDemand),
         confidence: Math.round(confidence),
         method: lastForecast?.method || 'NONE',
         recommendedOrder: Math.max(0, recommendedOrder),
@@ -85,9 +85,9 @@ router.get("/", protect, async (req, res) => {
         lastUpdated: lastForecast?.createdAt || null,
         forecastPoints: lastForecast?.points?.map(pt => ({
           period: pt.period,
-          predicted: Math.round(pt.predicted * 10) / 10,
-          lower95: pt.lower95 ? Math.round(pt.lower95 * 10) / 10 : null,
-          upper95: pt.upper95 ? Math.round(pt.upper95 * 10) / 10 : null,
+          predicted: Math.round(pt.predicted),
+          lower95: pt.lower95 ? Math.round(pt.lower95) : null,
+          upper95: pt.upper95 ? Math.round(pt.upper95) : null,
         })) || [],
       };
     }));

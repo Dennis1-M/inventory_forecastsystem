@@ -9,17 +9,21 @@ export const checkAndCreateAutoReorders = async () => {
   try {
     console.log('🔄 Checking for auto-reorder triggers...');
 
-    // Find products that need auto-reordering
-    const productsNeedingReorder = await prisma.product.findMany({
+    // Find all products with auto-reorder enabled and a supplier
+    const productsWithAutoReorder = await prisma.product.findMany({
       where: {
         autoReorderEnabled: true,
         supplierId: { not: null }, // Must have a supplier
-        currentStock: { lte: prisma.raw('reorder_point') }, // Stock <= reorder point
       },
       include: {
         supplier: true,
       },
     });
+
+    // Filter products where currentStock <= reorderPoint
+    const productsNeedingReorder = productsWithAutoReorder.filter(
+      product => product.currentStock <= product.reorderPoint
+    );
 
     if (productsNeedingReorder.length === 0) {
       console.log('✅ No products need auto-reordering');
@@ -108,19 +112,24 @@ export const checkAndCreateAutoReorders = async () => {
         },
       });
 
-      // Mark related alerts as read (low stock alerts)
+      // Auto-resolve related alerts (low stock alerts) since action has been taken
       for (const item of items) {
-        await prisma.alert.updateMany({
+        const resolvedCount = await prisma.alert.updateMany({
           where: {
             productId: item.productId,
             type: { in: ['LOW_STOCK', 'OUT_OF_STOCK'] },
             isResolved: false,
           },
           data: {
+            isResolved: true,  // Auto-resolve since auto-order created
             isRead: true,
             message: prisma.raw(`message || ' (Auto-order PO#${purchaseOrder.id} created)'`),
           },
         });
+        
+        if (resolvedCount.count > 0) {
+          console.log(`✅ Auto-resolved ${resolvedCount.count} alert(s) for ${item.productName}`);
+        }
       }
 
       console.log(`✅ Created auto-order PO#${purchaseOrder.id} for supplier: ${purchaseOrder.supplier.name}`);

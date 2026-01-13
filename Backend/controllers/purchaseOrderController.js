@@ -31,23 +31,27 @@ export const createPurchaseOrder = async (req, res) => {
       include: { items: { include: { product: true } } }
     })
 
-    // Update alerts for items in the purchase order
-    // Mark LOW_STOCK alerts as "acknowledged" by adding a note
+    // Auto-resolve alerts for items in the purchase order
+    // Mark LOW_STOCK and OUT_OF_STOCK alerts as resolved since reorder has been placed
     for (const item of po.items) {
       if (item.product) {
-        await prisma.alert.updateMany({
+        const resolvedCount = await prisma.alert.updateMany({
           where: {
             productId: item.productId,
             type: { in: ['LOW_STOCK', 'OUT_OF_STOCK'] },
-            isResolved: false,
-            isRead: false
+            isResolved: false
           },
           data: {
-            isRead: true,  // Mark as read/acknowledged
+            isResolved: true,  // Auto-resolve since action taken
+            isRead: true,
             message: `${item.product.name} - Restock order placed (PO #${po.id}). Expected: ${expectedDate ? new Date(expectedDate).toLocaleDateString() : 'TBD'}`,
             updatedAt: new Date()
           }
         })
+        
+        if (resolvedCount.count > 0) {
+          console.log(colors.green(`✅ Auto-resolved ${resolvedCount.count} alert(s) for ${item.product.name}`))
+        }
       }
     }
 

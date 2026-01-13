@@ -8,13 +8,10 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
-// Only admins can view activity logs
-router.use(allowRoles('ADMIN', 'SUPERADMIN'));
+// Get all activity logs - only admins
+router.get('/', allowRoles('ADMIN', 'SUPERADMIN', 'MANAGER'), getActivityLogs);
 
-// Get all activity logs
-router.get('/', getActivityLogs);
-
-// Create activity log
+// Create activity log - all authenticated users can log their activities
 router.post('/', createActivityLog);
 
 export default router;

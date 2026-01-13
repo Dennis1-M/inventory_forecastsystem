@@ -64,12 +64,22 @@ except Exception as e:
     sys.exit(1)
 `;
     
-    // Spawn Python process
-    const python = spawn('python', ['-c', pythonCode]);
+    // Spawn Python process with better error handling
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const python = spawn(pythonCmd, ['-c', pythonCode], {
+      cwd: modelsDir,
+      env: { ...process.env },
+      shell: false
+    });
 
     // Send data to Python
-    python.stdin.write(JSON.stringify({ historical_data: historicalData, horizon }));
-    python.stdin.end();
+    try {
+      python.stdin.write(JSON.stringify({ historical_data: historicalData, horizon }));
+      python.stdin.end();
+    } catch (err) {
+      reject(new Error(`Failed to send data to Python: ${err.message}`));
+      return;
+    }
 
     let stdout = '';
     let stderr = '';
@@ -82,9 +92,15 @@ except Exception as e:
       stderr += data.toString();
     });
 
+    python.on('error', (err) => {
+      reject(new Error(`spawn ${err.code || 'UNKNOWN'}`));
+    });
+
     python.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`Python process exited with code ${code}: ${stderr}`));
+        // Only show first 200 chars of stderr to avoid spam
+        const shortError = stderr.length > 200 ? stderr.substring(0, 200) + '...' : stderr;
+        reject(new Error(`Python process exited with code ${code}: ${shortError}`));
       } else {
         try {
           const result = JSON.parse(stdout);
@@ -94,7 +110,7 @@ except Exception as e:
             resolve(result);
           }
         } catch (err) {
-          reject(new Error(`Failed to parse Python output: ${err.message}\nOutput: ${stdout}`));
+          reject(new Error(`Failed to parse Python output: ${err.message}`));
         }
       }
     });
@@ -115,10 +131,15 @@ export const runForecastModel = async (series, horizon = 14, modelType = 'auto')
       modelType = 'moving_average';
     } else if (series.length < 30) {
       modelType = 'exponential_smoothing';
-    } else if (series.length < 60) {
+    } else if (series.length < 45) {
+      // Linear regression needs 30+ days
       modelType = 'linear_regression';
+    } else if (series.length >= 60) {
+      // XGBoost needs 60+ days for reliable results (17 minimum but 60 recommended)
+      modelType = 'xgboost';
     } else {
-      modelType = 'xgboost'; // Best for medium-large datasets
+      // 45-59 days: use exponential smoothing (more stable than xgboost with limited data)
+      modelType = 'exponential_smoothing';
     }
   }
 
@@ -178,10 +199,20 @@ export const runForecastModel = async (series, horizon = 14, modelType = 'auto')
         throw new Error(`Unknown model type: ${modelType}`);
     }
   } catch (error) {
-    console.error(`ML model ${modelType} failed:`, error.message);
+    // Track error count to reduce spam
+    if (!global.mlModelErrors) global.mlModelErrors = { count: 0, logged: false };
+    global.mlModelErrors.count++;
+    
+    // Only log first 3 errors and then summarize
+    if (global.mlModelErrors.count <= 3) {
+      console.error(`ML model ${modelType} failed:`, error.message);
+      console.log('Falling back to exponential smoothing');
+    } else if (global.mlModelErrors.count === 4 && !global.mlModelErrors.logged) {
+      console.log('📊 Note: ML models failing, using exponential smoothing fallback (further errors suppressed)');
+      global.mlModelErrors.logged = true;
+    }
     
     // Fallback to exponential smoothing
-    console.log('Falling back to exponential smoothing');
     return {
       method: 'EXPONENTIAL_SMOOTHING',
       points: exponentialSmoothingForecast(series, 0.3, horizon),

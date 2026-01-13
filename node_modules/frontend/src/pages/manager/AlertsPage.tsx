@@ -103,31 +103,32 @@ const AlertsPage: React.FC = () => {
         // Create purchase order
         const orderData = {
           supplierId: actionData.supplierId,
-          expectedDeliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          expectedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           items: [{
             productId: selectedAlert.productId,
             quantity: actionData.quantity,
-            unitPrice: selectedAlert.product?.costPrice || 0
+            unitCost: selectedAlert.product?.costPrice || 0
           }]
         };
         
         await apiService.post('/purchase-orders', orderData);
-        alert(`Purchase order created for ${actionData.quantity} units!`);
+        alert(`Purchase order created for ${actionData.quantity} units! Alert will be automatically resolved.`);
       } else if (actionType === 'clearance') {
         // Mark for clearance (could trigger a discount or removal)
         await apiService.post(`/inventory/${selectedAlert.productId}/clearance`, {
           reason: 'Expiring soon'
         });
         alert('Product marked for clearance!');
-      }
-
-      // Auto-resolve the alert after action
-      if (resolveAlert) {
-        resolveAlert(selectedAlert.id);
+        
+        // Manually resolve clearance alerts
+        if (resolveAlert) {
+          resolveAlert(selectedAlert.id);
+        }
       }
       
       setShowActionModal(false);
       setSelectedAlert(null);
+      // Refresh alerts list to reflect auto-resolved alerts
       refetch?.();
     } catch (err) {
       console.error('Action failed:', err);
