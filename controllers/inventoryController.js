@@ -1,20 +1,29 @@
 // backend/controllers/inventoryController.js
 import colors from "colors";
 import prisma from "../config/prisma.js";
+import { emitAlert, emitProductUpdate } from "../sockets/index.js";
 
 /**
  * HELPERS
  */
 async function createAlert(productId, type, message) {
-  return prisma.alert.create({
+  const alert = await prisma.alert.create({
     data: {
-      productId,
+      ...(productId ? { product: { connect: { id: productId } } } : {}),
       type,
       message,
-      isRead: false,
       isResolved: false,
     },
   });
+
+  // Emit realtime alert
+  try {
+    emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt });
+  } catch (e) {
+    console.warn('Failed to emit alert via socket', e.message);
+  }
+
+  return alert;
 }
 
 /**
@@ -89,6 +98,9 @@ export const receiveStock = async (req, res) => {
         });
       }
 
+      // Emit product update
+      try { emitProductUpdate({ productId: updatedProduct.id, currentStock: updatedProduct.currentStock }); } catch (e) { console.warn('Emit product update failed', e.message); }
+
       // Generate new alerts after update (non-transactional helper allowed in tx)
       await checkAndGenerateAlertsForProduct(updatedProduct);
 
@@ -107,9 +119,65 @@ export const receiveStock = async (req, res) => {
  * POST /api/inventory/adjust
  */
 export const adjustStock = async (req, res) => {
-  const { productId, type, quantity, notes } = req.body;
+  // Support two modes:
+  // 1) legacy mode: { productId, type, quantity, notes }
+  // 2) seed / convenience mode: { productId, newStock, reason }
+  const { productId, type, quantity, notes, newStock, reason } = req.body;
 
-  if (!productId || !type || quantity === undefined || Number(quantity) <= 0) {
+  if (!productId) {
+    return res.status(400).json({ message: "productId is required." });
+  }
+
+  const pId = Number(productId);
+
+  // If newStock provided, compute delta and perform an adjustment
+  if (newStock !== undefined) {
+    const target = Number(newStock);
+    if (Number.isNaN(target)) return res.status(400).json({ message: "newStock must be a number." });
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const p = await tx.product.findUnique({ where: { id: pId }, select: { currentStock: true, name: true } });
+        if (!p) throw new Error("ProductNotFound");
+
+        const delta = target - (p.currentStock || 0);
+        if (delta === 0) return { updatedProduct: p, movement: null };
+
+        const isIn = delta > 0;
+        const updatedProduct = await tx.product.update({ where: { id: pId }, data: { currentStock: target } });
+
+        const movement = await tx.inventoryMovement.create({
+          data: {
+            productId: pId,
+            type: isIn ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+            quantity: isIn ? delta : -Math.abs(delta),
+            description: reason || `Set stock to ${target}`,
+            userId: req.user?.id || 1,
+          },
+        });
+
+        if (updatedProduct.currentStock > 0) {
+          await tx.alert.updateMany({ where: { productId: pId, type: "OUT_OF_STOCK", isResolved: false }, data: { isResolved: true } });
+        }
+
+        // Emit product update
+        try { emitProductUpdate({ productId: updatedProduct.id, currentStock: updatedProduct.currentStock }); } catch (e) { console.warn('Emit product update failed', e.message); }
+
+        await checkAndGenerateAlertsForProduct(updatedProduct);
+
+        return { updatedProduct, movement };
+      });
+
+      return res.status(201).json({ message: "Stock adjusted.", ...result });
+    } catch (error) {
+      if (error.message === "ProductNotFound") return res.status(404).json({ message: "Product not found." });
+      console.error(colors.red("Error adjusting stock (newStock mode):"), error);
+      return res.status(500).json({ message: "Failed to adjust stock.", error: error.message });
+    }
+  }
+
+  // Legacy mode: type + quantity
+  if (!type || quantity === undefined || Number(quantity) <= 0) {
     return res.status(400).json({ message: "productId, type and positive quantity required." });
   }
 
@@ -117,7 +185,6 @@ export const adjustStock = async (req, res) => {
     return res.status(400).json({ message: "Invalid adjustment type." });
   }
 
-  const pId = Number(productId);
   const qty = Number(quantity);
   const isIn = type === "ADJUSTMENT_IN";
 
@@ -165,6 +232,56 @@ export const adjustStock = async (req, res) => {
 
     console.error(colors.red("Error adjusting stock:"), error);
     res.status(500).json({ message: "Failed to adjust stock.", error: error.message });
+  }
+};
+
+/**
+ * GET ALL INVENTORY PRODUCTS
+ * GET /api/inventory
+ * Returns array of products with inventory info
+ */
+export const getInventory = async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Transform to inventory format
+    const inventory = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      quantity: product.currentStock,
+      lowStockThreshold: product.lowStockThreshold,
+      unitPrice: product.unitPrice,
+      costPrice: product.costPrice,
+      price: product.unitPrice, // For compatibility
+      category: product.category?.name,
+      supplier: product.supplier?.name,
+      status:
+        product.currentStock <= 0
+          ? 'out-of-stock'
+          : product.currentStock <= product.lowStockThreshold
+            ? 'low-stock'
+            : 'in-stock',
+    }));
+
+    res.json({
+      success: true,
+      data: inventory,
+      count: inventory.length,
+    });
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch inventory',
+      error: error.message,
+    });
   }
 };
 
@@ -235,3 +352,107 @@ export const getInventorySummary = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch inventory summary", error: error.message });
   }
 };
+
+/**
+ * UPDATE PRODUCT AUTO-REORDER SETTINGS
+ * PUT /api/inventory/auto-reorder/:productId
+ * Body: { autoReorderEnabled, reorderPoint, reorderQuantity }
+ */
+export const updateProductAutoReorder = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { autoReorderEnabled, reorderPoint, reorderQuantity } = req.body;
+
+    // Validate input
+    if (reorderPoint !== undefined && reorderPoint < 0) {
+      return res.status(400).json({ message: "Reorder point must be >= 0" });
+    }
+    if (reorderQuantity !== undefined && reorderQuantity <= 0) {
+      return res.status(400).json({ message: "Reorder quantity must be > 0" });
+    }
+
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) }
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Update settings using service
+    const updated = await updateAutoReorderSettings(parseInt(productId), {
+      autoReorderEnabled,
+      reorderPoint,
+      reorderQuantity
+    });
+
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        action: "UPDATE_AUTO_REORDER",
+        details: `Updated auto-reorder settings for ${product.name}: enabled=${autoReorderEnabled}, reorderPoint=${reorderPoint}, reorderQuantity=${reorderQuantity}`
+      }
+    });
+
+    // Emit socket update
+    try {
+      emitProductUpdate({
+        id: updated.id,
+        name: updated.name,
+        currentStock: updated.currentStock,
+        autoReorderEnabled: updated.autoReorderEnabled,
+        reorderPoint: updated.reorderPoint,
+        reorderQuantity: updated.reorderQuantity
+      });
+    } catch (e) {
+      console.warn('Failed to emit product update via socket', e.message);
+    }
+
+    res.status(200).json({
+      message: "Auto-reorder settings updated successfully",
+      product: updated
+    });
+  } catch (error) {
+    console.error("Error updating auto-reorder settings:", error);
+    res.status(500).json({ 
+      message: "Failed to update auto-reorder settings", 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * MANUALLY TRIGGER AUTO-REORDER CHECK
+ * POST /api/inventory/trigger-auto-reorder
+ * Runs the auto-reorder logic immediately (useful for testing or manual triggers)
+ */
+export const triggerAutoReorder = async (req, res) => {
+  try {
+    console.log("🔄 Manual auto-reorder check triggered by user:", req.user.email);
+    
+    const result = await checkAndCreateAutoReorders();
+    
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        action: "TRIGGER_AUTO_REORDER",
+        details: `Manual auto-reorder check: ${result.ordersCreated} orders created for ${result.productsProcessed} products`
+      }
+    });
+
+    res.status(200).json({
+      message: "Auto-reorder check completed successfully",
+      result
+    });
+  } catch (error) {
+    console.error("Error triggering auto-reorder:", error);
+    res.status(500).json({ 
+      message: "Failed to trigger auto-reorder", 
+      error: error.message 
+    });
+  }
+};
+

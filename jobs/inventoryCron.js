@@ -2,6 +2,7 @@
 import colors from "colors";
 import cron from "node-cron";
 import { prisma } from "../index.js";
+import { emitAlert } from "../sockets/index.js";
 
 /**
  * Run a full scan and generate alerts for products.
@@ -22,7 +23,7 @@ async function runDailyInventoryCheck() {
       // Skip if no thresholds and not interesting
       // OUT OF STOCK
       if (currentStock <= 0) {
-        await prisma.alert.create({
+        const alert = await prisma.alert.create({
           data: {
             productId: id,
             type: "OUT_OF_STOCK",
@@ -31,12 +32,13 @@ async function runDailyInventoryCheck() {
             isResolved: false,
           },
         });
+        try { emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt }); } catch (e) { console.warn('Emit alert failed', e.message); }
         continue;
       }
 
       // LOW STOCK
       if (lowStockThreshold != null && currentStock <= lowStockThreshold) {
-        await prisma.alert.create({
+        const alert = await prisma.alert.create({
           data: {
             productId: id,
             type: "LOW_STOCK",
@@ -45,11 +47,12 @@ async function runDailyInventoryCheck() {
             isResolved: false,
           },
         });
+        try { emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt }); } catch (e) { console.warn('Emit alert failed', e.message); }
       }
 
       // OVERSTOCK
       if (currentStock >= 200) {
-        await prisma.alert.create({
+        const alert = await prisma.alert.create({
           data: {
             productId: id,
             type: "OVERSTOCK",
@@ -58,6 +61,7 @@ async function runDailyInventoryCheck() {
             isResolved: false,
           },
         });
+        try { emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt }); } catch (e) { console.warn('Emit alert failed', e.message); }
       }
     }
 

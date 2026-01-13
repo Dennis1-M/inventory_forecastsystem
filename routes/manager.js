@@ -1,7 +1,9 @@
 // backend/routes/manager.js - Add these to your existing backend
-const express = require('express');
+import { PrismaClient } from '@prisma/client';
+import express from 'express';
+import { managerOrHigher, protect } from '../middleware/authMiddleware.js';
+
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // ====================
@@ -9,7 +11,7 @@ const prisma = new PrismaClient();
 // ====================
 
 // Get dashboard statistics
-router.get('/dashboard-stats', async (req, res) => {
+router.get('/dashboard-stats', protect, managerOrHigher, async (req, res) => {
   try {
     // Get current user from auth middleware
     const userId = req.user.id;
@@ -30,12 +32,12 @@ router.get('/dashboard-stats', async (req, res) => {
       }),
       prisma.sale.findMany({
         where: {
-          saleDate: {
+          createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
           }
         },
-        include: { product: true, user: true },
-        orderBy: { saleDate: 'desc' },
+        include: { user: true, items: { include: { product: true } } },
+        orderBy: { createdAt: 'desc' },
         take: 100
       }),
       prisma.inventoryMovement.findMany({
@@ -57,7 +59,7 @@ router.get('/dashboard-stats', async (req, res) => {
 
     // Calculate statistics
     const pendingOrders = recentSales.filter(sale => 
-      new Date(sale.saleDate).toDateString() === new Date().toDateString()
+      new Date(sale.createdAt).toDateString() === new Date().toDateString()
     ).length;
 
     const lowStockItems = products.filter(product => 
@@ -68,11 +70,11 @@ router.get('/dashboard-stats', async (req, res) => {
 
     const today = new Date().toDateString();
     const todayShipments = recentSales.filter(sale => 
-      new Date(sale.saleDate).toDateString() === today
+      new Date(sale.createdAt).toDateString() === today
     ).length;
 
     const totalSalesValue = recentSales.reduce((sum, sale) => 
-      sum + sale.totalSaleAmount, 0
+      sum + sale.totalAmount, 0
     );
 
     const totalInventoryValue = products.reduce((sum, product) => 
@@ -105,7 +107,7 @@ router.get('/dashboard-stats', async (req, res) => {
 // ====================
 
 // Get low stock items
-router.get('/products/low-stock', async (req, res) => {
+router.get('/products/low-stock', protect, managerOrHigher, async (req, res) => {
   try {
     const lowStockProducts = await prisma.product.findMany({
       where: {
@@ -127,7 +129,7 @@ router.get('/products/low-stock', async (req, res) => {
 });
 
 // Record inventory adjustment (manager can adjust stock)
-router.post('/inventory/adjust', async (req, res) => {
+router.post('/inventory/adjust', protect, managerOrHigher, async (req, res) => {
   try {
     const { productId, newStock, reason, adjustmentType } = req.body;
     const userId = req.user.id;
@@ -198,28 +200,27 @@ router.post('/inventory/adjust', async (req, res) => {
 });
 
 // Get staff performance (sales by staff)
-router.get('/staff/performance', async (req, res) => {
+router.get('/staff/performance', protect, managerOrHigher, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
     const sales = await prisma.sale.groupBy({
       by: ['userId'],
       where: {
-        saleDate: {
+        createdAt: {
           gte: startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           lte: endDate ? new Date(endDate) : new Date()
         }
       },
       _sum: {
-        quantitySold: true,
-        totalSaleAmount: true
+        totalAmount: true
       },
       _count: {
         id: true
       },
       orderBy: {
         _sum: {
-          totalSaleAmount: 'desc'
+          totalAmount: 'desc'
         }
       }
     });
@@ -234,10 +235,9 @@ router.get('/staff/performance', async (req, res) => {
         return {
           userId: sale.userId,
           userName: user?.name || 'Unknown',
-          totalSales: sale._sum.totalSaleAmount || 0,
-          totalUnits: sale._sum.quantitySold || 0,
+          totalSales: sale._sum.totalAmount || 0,
           saleCount: sale._count.id || 0,
-          averageSaleValue: (sale._sum.totalSaleAmount || 0) / (sale._count.id || 1)
+          averageSaleValue: (sale._sum.totalAmount || 0) / (sale._count.id || 1)
         };
       })
     );
@@ -249,7 +249,7 @@ router.get('/staff/performance', async (req, res) => {
 });
 
 // Create stock request (manager requests stock from supplier)
-router.post('/stock-requests', async (req, res) => {
+router.post('/stock-requests', protect, managerOrHigher, async (req, res) => {
   try {
     const { productId, quantityRequested, urgency, reason, notes } = req.body;
     const userId = req.user.id;
@@ -285,7 +285,7 @@ router.post('/stock-requests', async (req, res) => {
 });
 
 // Assign task to staff (using alerts as tasks for now)
-router.post('/tasks/assign', async (req, res) => {
+router.post('/tasks/assign', protect, managerOrHigher, async (req, res) => {
   try {
     const { title, description, assignedTo, priority, dueDate, taskType } = req.body;
     const createdBy = req.user.id;
@@ -310,7 +310,7 @@ router.post('/tasks/assign', async (req, res) => {
 });
 
 // Get manager-specific reports
-router.get('/reports/inventory', async (req, res) => {
+router.get('/reports/inventory', protect, managerOrHigher, async (req, res) => {
   try {
     const products = await prisma.product.findMany({
       include: {
@@ -350,4 +350,74 @@ router.get('/reports/inventory', async (req, res) => {
   }
 });
 
-module.exports = router;
+// Get gross margin report
+// Optional query params: from (ISO date), to (ISO date)
+router.get('/reports/gross-margin', protect, managerOrHigher, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    const where = {};
+    if (from || to) {
+      where.sale = {};
+      if (from) where.sale.createdAt = { ...(where.sale.createdAt || {}), gte: new Date(from) };
+      if (to) where.sale.createdAt = { ...(where.sale.createdAt || {}), lte: new Date(to) };
+    }
+
+    // Fetch sale items in range with product and category
+    const items = await prisma.saleItem.findMany({
+      where,
+      include: { product: { include: { category: true } }, sale: true }
+    });
+
+    const productMap = new Map();
+    let totalRevenue = 0;
+    let totalCost = 0;
+
+    for (const it of items) {
+      const pid = it.productId;
+      const prod = it.product;
+      const revenue = (it.unitPrice || 0) * (it.quantity || 0);
+      const cost = (prod?.costPrice || 0) * (it.quantity || 0);
+
+      totalRevenue += revenue;
+      totalCost += cost;
+
+      if (!productMap.has(pid)) {
+        productMap.set(pid, { productId: pid, sku: prod?.sku, name: prod?.name, category: prod?.category?.name || null, revenue: 0, cost: 0, qty: 0 });
+      }
+
+      const agg = productMap.get(pid);
+      agg.revenue += revenue;
+      agg.cost += cost;
+      agg.qty += it.quantity;
+    }
+
+    const productMargins = Array.from(productMap.values()).map((p) => ({
+      ...p,
+      grossProfit: p.revenue - p.cost,
+      grossMarginPercent: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0
+    }));
+
+    // Aggregate by category
+    const catMap = new Map();
+    for (const p of productMargins) {
+      const key = p.category || 'Uncategorized';
+      if (!catMap.has(key)) catMap.set(key, { category: key, revenue: 0, cost: 0, grossProfit: 0 });
+      const c = catMap.get(key);
+      c.revenue += p.revenue;
+      c.cost += p.cost;
+      c.grossProfit += p.grossProfit;
+    }
+
+    const categoryMargins = Array.from(catMap.values()).map((c) => ({
+      ...c,
+      grossMarginPercent: c.revenue > 0 ? (c.grossProfit / c.revenue) * 100 : 0
+    }));
+
+    res.json({ success: true, data: { productMargins, categoryMargins, totalRevenue, totalCost, totalGrossProfit: totalRevenue - totalCost } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;

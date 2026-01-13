@@ -41,6 +41,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  phone     String?  // WhatsApp notification number (format: +1234567890)
   role      Role     @default(STAFF)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -49,6 +50,8 @@ model User {
   sales              Sale[]
   inventoryMovements InventoryMovement[]
   purchaseOrdersCreated PurchaseOrder[] @relation("CreatedPOs")
+  cycleCounts         CycleCount[]
+  activityLogs        ActivityLog[]
 }
 
 ////////////////////////////
@@ -70,14 +73,20 @@ model Supplier {
 }
 
 model Product {
-  id                Int    @id @default(autoincrement())
-  sku               String @unique
-  name              String @unique
+  id                Int       @id @default(autoincrement())
+  sku               String    @unique
+  name              String    @unique
   description       String?
   unitPrice         Float
   costPrice         Float?
-  currentStock      Int    @default(0)
-  lowStockThreshold Int    @default(10)
+  currentStock      Int       @default(0)
+  lowStockThreshold Int       @default(10)
+  reorderPoint      Int       @default(20)  // When to trigger auto-reorder
+  reorderQuantity   Int       @default(50)  // How many to order
+  autoReorderEnabled Boolean  @default(false) // Enable/disable auto-reorder per product
+  expiryDate        DateTime? // Product expiry date for tracking
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   categoryId Int
   supplierId Int?
@@ -90,6 +99,7 @@ model Product {
   alerts       Alert[]
   purchaseOrderItems PurchaseOrderItem[]
   forecastRuns ForecastRun[]
+  cycleCountItems CycleCountItem[]
 }
 
 ////////////////////////////
@@ -155,9 +165,25 @@ model ForecastRun {
   id        Int      @id @default(autoincrement())
   productId Int
   horizon   Int
+  method    String   @default("EXPONENTIAL_SMOOTHING")
+  accuracy  Float?   // RMSE or other accuracy metric
   createdAt DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id])
+  points  ForecastPoint[]
+}
+
+model ForecastPoint {
+  id        Int      @id @default(autoincrement())
+  runId     Int
+  period    Int      // Day 1, 2, ..., horizon
+  predicted Float    // Point forecast
+  lower95   Float?   // 95% confidence lower bound
+  upper95   Float?   // 95% confidence upper bound
+  
+  run ForecastRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
 }
 
 ////////////////////////////
@@ -207,6 +233,8 @@ model PurchaseOrderItem {
 enum AlertType {
   LOW_STOCK
   OVERSTOCK
+  EXPIRING_SOON
+  EXPIRED
   OTHER
   OUT_OF_STOCK
 }
@@ -217,7 +245,70 @@ model Alert {
   type       AlertType
   message    String
   isResolved Boolean   @default(false)
+  isRead     Boolean   @default(false)
   createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   product Product? @relation(fields: [productId], references: [id])
+}
+
+////////////////////////////
+// CYCLE COUNTS
+////////////////////////////
+
+model CycleCount {
+  id                  Int               @id @default(autoincrement())
+  createdById         Int
+  createdAt           DateTime          @default(now())
+  reason              String?           
+  totalShrinkageQty   Int               @default(0)
+  totalShrinkageValue Float             @default(0.0)
+
+  createdBy User @relation(fields: [createdById], references: [id])
+  items     CycleCountItem[]
+}
+
+model CycleCountItem {
+  id           Int      @id @default(autoincrement())
+  cycleCountId Int
+  productId    Int
+  expectedQty   Int
+  countedQty    Int
+  delta         Int
+  valueDelta    Float
+
+  cycleCount CycleCount @relation(fields: [cycleCountId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([cycleCountId])
+  @@index([productId])
+}
+
+////////////////////////////
+// ACTIVITY LOGS
+////////////////////////////
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  description String?
+  ipAddress String?
+  status    String   @default("success")
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([timestamp])
+}
+
+////////////////////////////
+// SETTINGS
+////////////////////////////
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
 }

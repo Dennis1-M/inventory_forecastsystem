@@ -54,6 +54,7 @@ const loadRoute = async (path, name) => {
 
 await loadRoute("./routes/authRoutes.js", "auth");
 await loadRoute("./routes/admin.js", "admin");
+await loadRoute("./routes/adminDataRoutes.js", "admin");
 await loadRoute("./routes/userRoutes.js", "users");
 await loadRoute("./routes/productRoutes.js", "products");
 await loadRoute("./routes/salesRoutes.js", "sales");
@@ -61,10 +62,24 @@ await loadRoute("./routes/syncRoutes.js", "sync");
 await loadRoute("./routes/purchaseOrderRoutes.js", "purchase-orders");
 await loadRoute("./routes/alertRoutes.js", "alerts");
 await loadRoute("./routes/inventoryRoutes.js", "inventory");
+await loadRoute("./routes/supplierRoutes.js", "suppliers");
+await loadRoute("./routes/manager.js", "manager");
 await loadRoute("./routes/forecastRoutes.js", "forecast");
+await loadRoute("./routes/forecastTriggerRoutes.js", "forecast-trigger");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
 await loadRoute("./routes/mpesaRoutes.js", "mpesa");
+  await loadRoute("./routes/exportRoutes.js", "export");
+  await loadRoute("./routes/importRoutes.js", "import");
+await loadRoute("./routes/healthRoutes.js", "health-status");
+await loadRoute("./routes/settingsRoutes.js", "settings");
+await loadRoute("./routes/setupRoutes.js", "setup");
+await loadRoute("./routes/notificationsRoutes.js", "notifications");
+await loadRoute("./routes/activityLogsRoutes.js", "activity-logs");
+await loadRoute("./routes/staffActivitiesRoutes.js", "staff-activities");
+await loadRoute("./routes/reportsRoutes.js", "reports");
+await loadRoute("./routes/apiRoutes.js", "api");
+await loadRoute("./routes/analyticsRoutes.js", "analytics");
 
 /* ===============================
    TEST / HEALTH ROUTES
@@ -115,17 +130,40 @@ app.get("/", (req, res) => {
 /* ===============================
    START SERVER
 ================================ */
+import { createServer } from 'http';
+import { runAutoReorderOnStartup, startAutoReorderCron } from './cron/autoReorderCron.js';
+import { startExpiryCheckCron } from './cron/checkExpiryAlerts.js';
+import { startForecastScheduler } from './jobs/forecastScheduler.js';
+import { initSockets } from './sockets/index.js';
 
 const PORT = process.env.PORT || 5001;
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = createServer(app);
+  // Initialize socket.io
+  initSockets(server);
+
+  // Start forecast scheduler
+  startForecastScheduler();
+
+  // Start expiry check cron job
+  startExpiryCheckCron();
+
+  // Start auto-reorder cron job and run initial check
+  startAutoReorderCron();
+  runAutoReorderOnStartup();
+
+  server.listen(PORT, () => {
     console.log(`\n🎉 Server running on http://localhost:${PORT}`);
     console.log("🔗 Available endpoints:");
     console.log("   GET  /health");
     console.log("   POST /api/auth/login");
     console.log("   POST /api/auth/register");
     console.log("   GET  /api/auth/users");
+    console.log('🔌 Socket.io server initialized');
+    console.log('📊 Forecast scheduler initialized');
+    console.log('⏰ Expiry check cron job initialized');
+    console.log('🔄 Auto-reorder system initialized');
   });
 }
 

@@ -1,5 +1,9 @@
 import colors from "colors";
 import prisma from "../config/prisma.js";
+import { emitAlert, emitProductUpdate } from "../sockets/index.js";
+
+// Resolve the DB at runtime so unit tests can stub `global.prisma` after module load
+const getDb = () => (typeof global !== 'undefined' && global.prisma) ? global.prisma : prisma;
 
 const handlePrismaError = (res, error, operation) => {
   console.error(colors.red(`Prisma Error during ${operation}:`), error);
@@ -37,7 +41,7 @@ export const processSync = async (req, res) => {
     }
 
     try {
-      const saleResult = await prisma.$transaction(async (tx) => {
+      const saleResult = await getDb().$transaction(async (tx) => {
         const productIds = [...new Set(items.map((i) => i.productId))];
         const products = await tx.product.findMany({ where: { id: { in: productIds } } });
 
@@ -85,6 +89,19 @@ export const processSync = async (req, res) => {
       });
 
       results.push({ clientId: s.clientId, success: true, result: saleResult });
+
+      // Emit updates for affected products and any new low-stock alerts (best-effort, post-transaction)
+      try {
+        for (const it of items) {
+          const prod = await getDb().product.findUnique({ where: { id: it.productId }, select: { id: true, currentStock: true, name: true } });
+          if (prod) emitProductUpdate({ productId: prod.id, currentStock: prod.currentStock });
+
+          const alert = await getDb().alert.findFirst({ where: { productId: it.productId, isResolved: false } });
+          if (alert) emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt });
+        }
+      } catch (e) {
+        console.warn('Post-sync emits failed', e.message);
+      }
     } catch (error) {
       if (error.message === "ProductNotFound") {
         results.push({ clientId: s.clientId, success: false, error: "One or more products not found" });

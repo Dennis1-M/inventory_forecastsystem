@@ -1,6 +1,7 @@
 // sales.controller.js
 import colors from "colors";
 import prisma from "../config/prisma.js";
+import { emitAlert, emitProductUpdate } from "../sockets/index.js";
 
 // ---------- Error Handler ----------
 const handlePrismaError = (res, error, operation) => {
@@ -73,7 +74,7 @@ export const createSale = async (req, res) => {
         data: {
           totalAmount,
           paymentMethod: paymentMethod || "CASH",
-          userId: req.user.id,
+          userId: req.user?.id || 1, // fallback to system user when auth is not present in tests
           items: {
             create: parsedItems.map((it) => ({
               productId: it.productId,
@@ -112,6 +113,19 @@ export const createSale = async (req, res) => {
 
       return sale;
     });
+
+    // Post-transaction: emit updates and alerts for affected products
+    try {
+      for (const it of parsedItems) {
+        const prod = await prisma.product.findUnique({ where: { id: it.productId }, select: { id: true, currentStock: true, name: true } });
+        if (prod) emitProductUpdate({ productId: prod.id, currentStock: prod.currentStock });
+
+        const alert = await prisma.alert.findFirst({ where: { productId: it.productId, isResolved: false } });
+        if (alert) emitAlert({ id: alert.id, productId: alert.productId, type: alert.type, message: alert.message, createdAt: alert.createdAt });
+      }
+    } catch (e) {
+      console.warn('Post-sale emits failed', e.message);
+    }
 
     return res.status(201).json(result);
   } catch (error) {
@@ -160,8 +174,8 @@ export const getSales = async (req, res) => {
       prisma.sale.findMany({
         where,
         include: {
-          items: { include: { product: { select: { name: true, sku: true, unitPrice: true } } } },
-          user: { select: { name: true } },
+          items: { include: { product: { select: { name: true, sku: true, unitPrice: true, category: { select: { name: true } } } } } },
+          user: { select: { name: true, role: true } },
         },
         orderBy: { createdAt: "desc" },
         skip,

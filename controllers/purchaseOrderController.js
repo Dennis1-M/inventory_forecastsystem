@@ -1,5 +1,6 @@
 import colors from 'colors'
 import prisma from '../config/prisma.js'
+import { emitProductUpdate } from '../sockets/index.js'
 
 const handleError = (res, err, op) => {
   console.error(colors.red(`Error during ${op}:`), err)
@@ -27,8 +28,32 @@ export const createPurchaseOrder = async (req, res) => {
           create: items.map((it) => ({ productId: Number(it.productId), quantityOrdered: Number(it.quantity), unitCost: Number(it.unitCost) }))
         }
       },
-      include: { items: true }
+      include: { items: { include: { product: true } } }
     })
+
+    // Auto-resolve alerts for items in the purchase order
+    // Mark LOW_STOCK and OUT_OF_STOCK alerts as resolved since reorder has been placed
+    for (const item of po.items) {
+      if (item.product) {
+        const resolvedCount = await prisma.alert.updateMany({
+          where: {
+            productId: item.productId,
+            type: { in: ['LOW_STOCK', 'OUT_OF_STOCK'] },
+            isResolved: false
+          },
+          data: {
+            isResolved: true,  // Auto-resolve since action taken
+            isRead: true,
+            message: `${item.product.name} - Restock order placed (PO #${po.id}). Expected: ${expectedDate ? new Date(expectedDate).toLocaleDateString() : 'TBD'}`,
+            updatedAt: new Date()
+          }
+        })
+        
+        if (resolvedCount.count > 0) {
+          console.log(colors.green(`✅ Auto-resolved ${resolvedCount.count} alert(s) for ${item.product.name}`))
+        }
+      }
+    }
 
     return res.status(201).json({ message: 'Purchase order created.', po })
   } catch (err) {
@@ -102,6 +127,29 @@ export const receivePurchaseOrder = async (req, res) => {
 
         await tx.product.update({ where: { id: poItem.productId }, data: { costPrice: newCost } })
 
+        // Auto-resolve LOW_STOCK and OUT_OF_STOCK alerts if stock is now sufficient
+        if (product.currentStock > product.lowStockThreshold) {
+          const resolvedAlerts = await tx.alert.updateMany({
+            where: {
+              productId: poItem.productId,
+              type: { in: ['LOW_STOCK', 'OUT_OF_STOCK'] },
+              isResolved: false
+            },
+            data: {
+              isResolved: true,
+              updatedAt: new Date()
+            }
+          })
+          
+          // Log resolved alerts count
+          if (resolvedAlerts.count > 0) {
+            console.log(`✅ Auto-resolved ${resolvedAlerts.count} alert(s) for product ${poItem.productId}`)
+          }
+        }
+
+        // emit product update (post-transaction will ensure DB visibility)
+        try { emitProductUpdate({ productId: poItem.productId, currentStock: product.currentStock }); } catch (e) { console.warn('Emit product update failed', e.message); }
+
         receiptSummary.push({ itemId, received: toReceive })
       }
 
@@ -110,12 +158,37 @@ export const receivePurchaseOrder = async (req, res) => {
       const allReceived = itemsAfter.every((it) => it.quantityReceived >= it.quantityOrdered)
       const anyReceived = itemsAfter.some((it) => it.quantityReceived > 0)
 
-      await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: allReceived ? 'RECEIVED' : (anyReceived ? 'PARTIALLY_RECEIVED' : 'ORDERED') } })
+      const newStatus = allReceived ? 'RECEIVED' : (anyReceived ? 'PARTIALLY_RECEIVED' : 'ORDERED')
+      await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: newStatus } })
 
-      return { receipt: receiptSummary }
+      return { receipt: receiptSummary, newStatus }
     })
 
     res.status(200).json({ message: 'PO received', result })
+
+    // Emit PO status change and alert resolution notifications
+    try {
+      if (result && result.newStatus) {
+        // Use a dedicated event for PO status
+        const po = await prisma.purchaseOrder.findUnique({ where: { id: Number(id) }, include: { supplier: true, items: { include: { product: true } } } })
+        emitProductUpdate({ type: 'po:status', poId: id, status: result.newStatus, supplier: po?.supplier?.name || null })
+        
+        // Emit alert resolution event for each product that had alerts resolved
+        if (po && po.items) {
+          for (const item of po.items) {
+            if (item.product && item.product.currentStock > item.product.lowStockThreshold) {
+              emitProductUpdate({ 
+                type: 'alert:resolved', 
+                productId: item.productId, 
+                productName: item.product.name,
+                alertTypes: ['LOW_STOCK', 'OUT_OF_STOCK'],
+                message: `Stock replenished for ${item.product.name}. Current stock: ${item.product.currentStock}`
+              })
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn('Emit PO status failed', e.message) }
   } catch (err) {
     if (err.message === 'PONotFound') return res.status(404).json({ message: 'Purchase order not found.' })
     if (err.message === 'POItemNotFound') return res.status(404).json({ message: 'PO item not found.' })

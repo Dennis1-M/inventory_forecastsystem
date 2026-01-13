@@ -3,7 +3,7 @@ const axios = require('axios');
 
 console.log("=== Testing Backend API Endpoints ===\n");
 
-const API_BASE = 'http://localhost:5000/api'; // Update with your backend URL
+const API_BASE = 'http://localhost:5001/api'; // Update with your backend URL
 const testAdminCredentials = {
     email: 'admin@example.com',
     password: 'admin123'
@@ -21,7 +21,7 @@ async function testBackendServer() {
         return true;
     } catch (error) {
         console.error(`✗ Backend server not reachable: ${error.message}`);
-        console.log("  Make sure your backend server is running on port 5000");
+        console.log("  Make sure your backend server is running on port 5001");
         return false;
     }
 }

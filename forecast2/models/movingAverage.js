@@ -15,7 +15,7 @@ export const movingAverageForecast = (series, window = 7, horizon = 14) => {
   const forecast = [];
   for (let i = 1; i <= horizon; i++) {
     forecast.push({
-      period: new Date(Date.now() + i * 86400000),
+      period: i,
       predicted: avg,
       lower95: avg * 0.8,
       upper95: avg * 1.2,

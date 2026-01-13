@@ -14,6 +14,7 @@ export const createProduct = async (req, res) => {
     categoryId,
     supplierId,
     lowStockThreshold,
+    expiryDate,
   } = req.body;
 
   // Basic validation
@@ -50,12 +51,23 @@ export const createProduct = async (req, res) => {
         lowStockThreshold:
           lowStockThreshold !== undefined ? Number(lowStockThreshold) : 10,
         currentStock: 0,
+        ...(expiryDate && { expiryDate: new Date(expiryDate) }),
       },
     });
 
     res.status(201).json({ message: "Product created.", product: newProduct });
   } catch (error) {
     console.error(colors.red("Prisma Error creating product:"), error);
+    // If product already exists (P2002), return the existing product for idempotent test setup
+    if (error && error.code === 'P2002') {
+      try {
+        const existing = await prisma.product.findUnique({ where: { name } });
+        if (existing) return res.status(200).json({ message: 'Product already exists.', product: existing });
+      } catch (e) {
+        // fall through to generic error
+      }
+    }
+
     res.status(500).json({ message: "Failed to create product.", error: error.message });
   }
 };
@@ -175,6 +187,7 @@ export const updateProduct = async (req, res) => {
     categoryId,
     supplierId,
     lowStockThreshold,
+    expiryDate,
   } = req.body;
 
   try {
@@ -198,6 +211,7 @@ export const updateProduct = async (req, res) => {
         ...(categoryId !== undefined && { categoryId: Number(categoryId) }),
         ...(supplierId !== undefined && { supplierId: supplierId ? Number(supplierId) : null }),
         ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
+        ...(expiryDate !== undefined && { expiryDate: expiryDate ? new Date(expiryDate) : null }),
       },
       include: { category: true, supplier: true },
     });

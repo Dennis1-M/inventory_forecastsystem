@@ -1,7 +1,7 @@
 // forecast/scheduler/forecastRunner.js
 // Orchestrates forecast execution and persistence
 
-import { prisma } from "../../index.js";
+import prisma from "../../config/prisma.js";
 import { getDailyDemandSeries } from "../data/demandSeries.js";
 import { runForecastModel } from "../models/modelSelector.js";
 
@@ -13,7 +13,7 @@ export const runProductForecast = async (productId, horizon = 14) => {
 
   if (series.length < 5) return null;
 
-  const result = runForecastModel(series, horizon);
+  const result = await runForecastModel(series, horizon); // Fixed: Added await
 
   const forecastRun = await prisma.forecastRun.create({
     data: {
