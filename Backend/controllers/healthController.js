@@ -1,3 +1,6 @@
+// Backend/controllers/healthController.js
+// Controller to handle health check of the API and database connection
+
 import prisma from '../prisma/client.js';
 
 export const getHealthStatus = async (req, res) => {

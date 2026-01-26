@@ -1,4 +1,5 @@
 // controllers/analyticsController.js
+
 import prisma from '../config/prisma.js';
 
 // Get Inventory Health Score

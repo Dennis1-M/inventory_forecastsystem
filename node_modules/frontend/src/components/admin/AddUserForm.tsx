@@ -79,6 +79,7 @@ const AddUserForm = ({ isOpen, onClose, onSuccess }: AddUserFormProps) => {
             <option>STAFF</option>
             <option>MANAGER</option>
             <option>ADMIN</option>
+            <option>SUPERADMIN</option>
           </select>
         </div>
         <div className="flex justify-end space-x-2">

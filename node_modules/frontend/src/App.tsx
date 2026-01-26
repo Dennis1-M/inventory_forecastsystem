@@ -10,6 +10,7 @@ import LandingPage from './pages/LandingPage';
 import ManagerDashboard from './pages/manager/ManagerDashboard';
 import InitialSetupPage from './pages/setup/InitialSetupPage';
 import StaffDashboard from './pages/staff/StaffDashboard';
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import { setupService } from './services/setup';
 
 function App() {
@@ -59,9 +60,17 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
+          path="/superadmin"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+              <SuperAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPERADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <AdminDashboard />
             </ProtectedRoute>
           }

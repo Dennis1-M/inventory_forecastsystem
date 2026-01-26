@@ -22,8 +22,10 @@ const LoginPage = () => {
       const { data } = await authApi.login({ email, password });
       auth.login(data.user, data.token);
       switch (data.user.role) {
-        case 'ADMIN':
         case 'SUPERADMIN':
+          navigate('/superadmin');
+          break;
+        case 'ADMIN':
           navigate('/admin');
           break;
         case 'MANAGER':

@@ -3,5 +3,9 @@
   "workspaces": [
     "Backend",
     "frontend"
-  ]
+  ],
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "multer": "^2.0.2"
+  }
 }

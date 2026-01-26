@@ -5,6 +5,7 @@ import { DashboardLayout } from '../../components/layout';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityLogsPage from './ActivityLogsPage';
 import InventoryOversightPage from './InventoryOversightPage';
+import ProductsPage from './ProductsPage';
 import ProfilePage from './ProfilePage';
 import ReportsAnalyticsPage from './ReportsAnalyticsPage';
 import SalesMonitoringPage from './SalesMonitoringPage';
@@ -25,6 +26,7 @@ const AdminDashboard: React.FC = () => {
   const sidebarItems = [
     { icon: <Activity className="h-5 w-5" />, label: 'Dashboard Overview', id: 'dashboard' },
     { icon: <Users className="h-5 w-5" />, label: 'User Management', id: 'users' },
+    { icon: <Package className="h-5 w-5" />, label: 'Products', id: 'products' },
     { icon: <Package className="h-5 w-5" />, label: 'Inventory Oversight', id: 'inventory' },
     { icon: <TrendingUp className="h-5 w-5" />, label: 'Sales Monitoring', id: 'sales' },
     { icon: <BarChart3 className="h-5 w-5" />, label: 'Reports & Analytics', id: 'reports' },
@@ -76,6 +78,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
       {activeTab === 'users' && <UserManagementPage />}
+      {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'inventory' && <InventoryOversightPage />}
       {activeTab === 'sales' && <SalesMonitoringPage />}
       {activeTab === 'reports' && <ReportsAnalyticsPage />}

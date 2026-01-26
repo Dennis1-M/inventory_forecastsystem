@@ -1,3 +1,6 @@
+// Backend/controllers/cycleCountController.js
+// Controller for managing inventory cycle counts
+
 import colors from 'colors'
 import prisma from '../config/prisma.js'
 

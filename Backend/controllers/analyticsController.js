@@ -1,4 +1,8 @@
 // controllers/analyticsController.js
+// controller for advanced analytics in inventory management
+
+
+
 import prisma from '../config/prisma.js';
 
 // Helper: Get sale items for a product within date range
@@ -562,6 +566,7 @@ export const getReorderOptimization = async (req, res) => {
 };
 
 // Get Seasonal Trends
+// 
 export const getSeasonalTrends = async (req, res) => {
   try {
     const yearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);

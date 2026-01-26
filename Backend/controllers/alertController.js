@@ -1,7 +1,7 @@
-// controllers/alertController.js
-// --------------------------------------
 // Exposes alert data to dashboards
-// -----------------------------------
+// Using Prisma ORM for database interactions 
+// controller for managing alerts in the system
+
 import prisma from '../config/prisma.js';
 
 export const getActiveAlerts = async (req, res) => {

@@ -1,3 +1,7 @@
+// Backend/controllers/dashboardController.js
+// Controller for admin dashboard data aggregation
+
+
 import prisma from "../config/prisma.js";
 
 export const getAdminDashboard = async (req, res) => {

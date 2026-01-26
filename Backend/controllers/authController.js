@@ -1,3 +1,6 @@
+// controllers/authController.js
+// controller for user authentication and management
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";

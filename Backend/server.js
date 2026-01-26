@@ -54,6 +54,7 @@ const loadRoute = async (path, name) => {
 
 await loadRoute("./routes/authRoutes.js", "auth");
 await loadRoute("./routes/admin.js", "admin");
+await loadRoute("./routes/adminDataRoutes.js", "admin");
 await loadRoute("./routes/userRoutes.js", "users");
 await loadRoute("./routes/productRoutes.js", "products");
 await loadRoute("./routes/salesRoutes.js", "sales");
@@ -68,7 +69,8 @@ await loadRoute("./routes/forecastTriggerRoutes.js", "forecast-trigger");
 await loadRoute("./routes/categoryRoutes.js", "categories");
 await loadRoute("./routes/dashboardRoutes.js", "dashboard");
 await loadRoute("./routes/mpesaRoutes.js", "mpesa");
-await loadRoute("./routes/exportRoutes.js", "export");
+  await loadRoute("./routes/exportRoutes.js", "export");
+  await loadRoute("./routes/importRoutes.js", "import");
 await loadRoute("./routes/healthRoutes.js", "health-status");
 await loadRoute("./routes/settingsRoutes.js", "settings");
 await loadRoute("./routes/setupRoutes.js", "setup");

@@ -1,3 +1,6 @@
+// Backend/controllers/categoryController.js
+// Controller for managing product categories
+
 import colors from 'colors';
 import prisma from "../config/prisma.js";
 
@@ -53,7 +56,7 @@ export const getCategories = async (req, res) => {
     }
 };
 
-// --- FIX: Get By ID ---
+// -- Get By ID ---
 export const getCategoryById = async (req, res) => {
     const { id } = req.params;
 

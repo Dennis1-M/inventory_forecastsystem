@@ -1,3 +1,8 @@
+// Backend/controllers/exportController.js
+// Controller for exporting data in various formats
+
+
+
 import ExcelJS from 'exceljs';
 import { Parser } from 'json2csv';
 import prisma from '../prisma/client.js';
@@ -42,9 +47,10 @@ export const exportSales = async (req, res) => {
   try {
     const { format = 'csv' } = req.query; // default to csv for backward compatibility
 
+
     const sales = await prisma.sale.findMany({
       include: {
-        saleItems: {
+        items: {
           include: {
             product: true,
           },
@@ -56,17 +62,19 @@ export const exportSales = async (req, res) => {
       },
     });
 
-    const salesData = sales.flatMap((sale) =>
-      sale.saleItems.map((item) => ({
+    // Defensive: skip sales or items with missing relations
+    const salesData = sales.flatMap((sale) => {
+      if (!sale.items || !Array.isArray(sale.items) || !sale.user) return [];
+      return sale.items.map((item) => ({
         saleId: sale.id,
-        date: new Date(sale.createdAt).toLocaleDateString(),
-        productName: item.product.name,
+        date: sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : '',
+        productName: item.product?.name || '',
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.quantity * item.unitPrice,
-        cashier: sale.user.name,
-      }))
-    );
+        cashier: sale.user?.name || '',
+      }));
+    });
 
     if (format === 'excel' || format === 'xlsx') {
       // Excel export
@@ -111,28 +119,24 @@ export const exportInventory = async (req, res) => {
   try {
     const { format = 'csv' } = req.query;
 
-    const inventory = await prisma.inventory.findMany({
+    // There is no 'inventory' model, so use Product for inventory info
+    const products = await prisma.product.findMany({
       include: {
-        product: {
-          include: {
-            category: true,
-          },
-        },
+        category: true,
+        supplier: true,
       },
       orderBy: {
-        product: {
-          name: 'asc',
-        },
+        name: 'asc',
       },
     });
 
-    const inventoryData = inventory.map((item) => ({
-      productId: item.productId,
-      productName: item.product.name,
-      category: item.product.category.name,
-      quantity: item.quantity,
-      reorderLevel: item.reorderLevel,
-      lastRestocked: item.lastRestocked ? new Date(item.lastRestocked).toLocaleDateString() : 'N/A',
+    const inventoryData = products.map((product) => ({
+      productId: product.id,
+      productName: product.name,
+      category: product.category?.name || '',
+      quantity: product.currentStock,
+      reorderLevel: product.reorderPoint,
+      lastRestocked: product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : 'N/A',
     }));
 
     if (format === 'excel' || format === 'xlsx') {
