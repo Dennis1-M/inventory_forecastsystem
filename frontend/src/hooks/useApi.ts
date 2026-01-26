@@ -1,3 +1,12 @@
+// frontend/src/hooks/useApi.ts
+// Custom hooks to interact with the backend API for various resources
+// Uses Axios for HTTP requests
+// Each hook manages its own state for data, loading, and error handling
+// Provides functions to refetch or update data as needed
+
+
+
+
 import { useEffect, useState } from 'react';
 import apiService from '../services/api';
 

@@ -1,3 +1,13 @@
+// frontend/src/components/InstallPrompt.tsx
+// Component to prompt users to install the PWA version of the app
+// after a certain period of usage, unless they have dismissed it recently.
+// Uses the beforeinstallprompt event to trigger the prompt.
+// Remembers dismissal in localStorage to avoid showing the prompt too frequently.
+// Styled with Tailwind CSS for a modern look.
+
+
+
+
 import { Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

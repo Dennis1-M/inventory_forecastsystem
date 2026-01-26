@@ -1,3 +1,14 @@
+// frontend/src/lib/api.ts
+// API utility functions to interact with the backend
+// Uses Axios for HTTP requests
+// Configures base URL and headers for authentication
+// Provides functions for common API operations (GET, POST, PUT, DELETE)
+// for various resources like users, products, orders, etc.
+// Each function returns the Axios promise for further handling in the calling code
+
+
+
+
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5001/api';

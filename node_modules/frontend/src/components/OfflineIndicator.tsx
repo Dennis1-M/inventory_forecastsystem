@@ -1,3 +1,13 @@
+// frontend/src/components/OfflineIndicator.tsx
+// Component to indicate online/offline status of the app
+// Listens to online and offline events to update status
+// Displays a notification banner when going offline or coming back online
+// Styled with Tailwind CSS for a modern look.
+
+
+
+
+
 import { Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

@@ -1,3 +1,13 @@
+// frontend/src/hooks/useAnalytics.ts
+// frontend/src/hooks/useAnalytics.ts
+// Custom hooks to fetch various analytics data from the backend API
+// Uses React Query for data fetching, caching, and state management
+// Each hook corresponds to a specific analytics endpoint
+// Includes a utility function to download analytics reports as JSON files
+
+
+
+
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 

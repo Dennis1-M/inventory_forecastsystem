@@ -1,3 +1,14 @@
+// frontend/src/contexts/AuthContext.tsx
+// Context to manage authentication state across the app
+// Provides login, logout, and token management functionalities
+// Stores user info and token in localStorage for persistence
+// Uses React Context API for easy access throughout the component tree
+
+
+
+
+
+
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { authService } from '../services/auth';
 
