@@ -1,4 +1,5 @@
 // controllers/userController.js
+// Controllers for user management and authentication
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";

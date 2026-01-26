@@ -1,3 +1,6 @@
+// backend/controllers/posController.js
+// Controller to handle POS operations: checkout, sales recording, and stock updates
+
 import prisma from "../config/prisma.js";
 
 // --------------------------

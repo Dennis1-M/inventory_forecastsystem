@@ -1,3 +1,7 @@
+// backend/controllers/notificationsController.js
+// Controller to handle system notifications: alerts, inventory movements, and forecast updates
+
+
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

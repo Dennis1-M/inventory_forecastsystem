@@ -1,7 +1,22 @@
+// frontend/src/components/layout/Header.tsx
+// Header.tsx
+// A header component for the application.
+// It includes a menu button, search bar, notifications, user profile, and logout functionality.
+// It uses Tailwind CSS for styling.
+
+
+
+
+
+
 import { Bell, Menu, Search, UserCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const Header = ({ onMenuClick }) => {
+type HeaderProps = {
+  onMenuClick: () => void;
+};
+
+const Header = ({ onMenuClick }: HeaderProps) => {
   const { user, logout } = useAuth();
 
   return (

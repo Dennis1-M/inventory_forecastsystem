@@ -1,4 +1,6 @@
 // backend/controllers/inventoryController.js
+// Controller to handle inventory management: stock in, stock adjustments, alerts, and summaries
+
 import colors from "colors";
 import prisma from "../config/prisma.js";
 import { emitAlert, emitProductUpdate } from "../sockets/index.js";

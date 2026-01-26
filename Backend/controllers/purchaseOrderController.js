@@ -1,3 +1,7 @@
+// Backend/controllers/purchaseOrderController.js
+// Controller for managing purchase orders
+
+
 import colors from 'colors'
 import prisma from '../config/prisma.js'
 import { emitProductUpdate } from '../sockets/index.js'

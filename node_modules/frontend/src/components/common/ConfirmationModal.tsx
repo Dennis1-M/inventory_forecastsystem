@@ -1,3 +1,14 @@
+// frontend/src/components/common/ConfirmationModal.tsx
+// A reusable confirmation modal component.
+// It displays a message and provides Confirm and Cancel buttons.
+// On confirmation, it triggers the onConfirm callback.
+// On cancellation, it triggers the onClose callback.
+// Dependencies: React, Modal (for displaying the modal dialog)
+// Note: Ensure that the Modal component is implemented to handle isOpen and onClose props.
+
+
+
+
 import Modal from './Modal';
 
 interface ConfirmationModalProps {

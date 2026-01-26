@@ -1,3 +1,7 @@
+// backend/controllers/productController.js
+// Controller to handle product CRUD operations and low stock alerts
+
+
 import colors from "colors";
 import prisma from "../config/prisma.js";
 /**

@@ -1,4 +1,8 @@
 // controllers/userController.js
+// Controller for managing users: CRUD operations and account deletion
+
+
+
 import bcrypt from "bcryptjs";
 import prisma from "../config/prisma.js";
 

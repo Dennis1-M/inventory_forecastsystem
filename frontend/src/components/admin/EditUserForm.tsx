@@ -1,3 +1,15 @@
+// frontend/src/components/admin/EditUserForm.tsx
+// A form component for editing an existing user in the admin panel.
+// It includes fields for name, email (read-only), and role selection.
+// On submission, it sends a PUT request to the backend API to update the user.
+// It also handles loading states and error messages.
+// Uses a Modal component to display the form.
+// Dependencies: React, apiService (for API calls), Modal (for displaying the form in a modal)
+// Note: Ensure that apiService is properly configured to handle API requests.
+// Also, ensure that the Modal component is implemented to handle isOpen and onClose props.
+
+
+
 import { useEffect, useState } from 'react';
 import apiService from '../../services/api';
 import Modal from '../common/Modal';

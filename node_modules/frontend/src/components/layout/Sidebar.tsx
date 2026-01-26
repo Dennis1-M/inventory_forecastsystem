@@ -1,28 +1,41 @@
+// frontend/src/components/layout/Sidebar.tsx
+// Sidebar component with navigation links and logout functionality
+// Uses React, React Router, and a custom Auth context.
+
+
+
 import { LogOut } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface SidebarItem {
-  icon: React.ReactNode;
+export interface SidebarLink {
+  to: string;
   label: string;
-  id: string;
 }
 
-interface SidebarProps {
-  sidebarItems: SidebarItem[];
-  activeTab: string;
-  onTabChange: (id: string) => void;
-  title: string;
+export interface SidebarProps {
+  links: SidebarLink[];
+  title?: string;
   subtitle?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ sidebarItems, activeTab, onTabChange, title, subtitle }) => {
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const Sidebar: React.FC<SidebarProps> = ({ links, title = "Smart Inventory", subtitle }) => {
   const auth = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>(links[0]?.to || '');
 
   const handleLogout = () => {
     if (auth?.logout) {
       auth.logout();
     }
+  };
+
+  const onTabChange = (to: string) => {
+    setActiveTab(to);
+    navigate(to);
   };
 
   return (
@@ -42,18 +55,18 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarItems, activeTab, onTabChange,
 
         {/* Navigation Items */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {sidebarItems.map((item) => (
+          {links.map((link) => (
             <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
+              key={link.to}
+              onClick={() => onTabChange(link.to)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 font-medium text-sm ${
-                activeTab === item.id
+                activeTab === link.to
                   ? 'bg-white text-indigo-600 shadow-sm border-l-4 border-indigo-600 pl-3'
                   : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-xs'
               }`}
             >
-              <span className="w-5 h-5 flex items-center justify-center">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
+              {/* Remove item.icon since SidebarLink doesn't have icon */}
+              <span className="font-medium">{link.label}</span>
             </button>
           ))}
         </nav>

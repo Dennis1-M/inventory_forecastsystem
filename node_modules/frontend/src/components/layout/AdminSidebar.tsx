@@ -1,3 +1,9 @@
+// frontend/src/components/layout/AdminSidebar.tsx  
+// This is a legacy component. Use DashboardLayout with sidebarItems instead.
+// Returning a minimal implementation for backward compatibility.
+// No additional imports needed.
+
+
 
 const AdminSidebar = () => {
   // This is a legacy component. Use DashboardLayout with sidebarItems instead.

@@ -1,3 +1,6 @@
+// Backend/controllers/reportsController.js
+// Controller for exporting various reports in different formats
+
 import { PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';

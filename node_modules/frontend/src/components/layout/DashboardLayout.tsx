@@ -1,3 +1,12 @@
+// frontend/src/components/layout/DashboardLayout.tsx
+// DashboardLayout.tsx
+// A layout component for the dashboard with sidebar and topbar.
+// It accepts props for sidebar items, active tab, user info, and content area.
+// It uses Tailwind CSS for styling.
+
+
+
+
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';

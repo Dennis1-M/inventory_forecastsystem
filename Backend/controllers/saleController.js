@@ -1,4 +1,7 @@
 // sales.controller.js
+// Controller for managing sales: create, read, update, delete, and forecast
+
+
 import colors from "colors";
 import prisma from "../config/prisma.js";
 import { emitAlert, emitProductUpdate } from "../sockets/index.js";

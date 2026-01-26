@@ -1,5 +1,9 @@
+// Backend/controllers/supplierController.js
+// Controller for managing suppliers: CRUD operations and dashboard analytics
+
+
 import colors from "colors";
-import prisma  from "../config/prisma.js"
+import prisma from "../config/prisma.js";
 /**
  * Get all suppliers
  */

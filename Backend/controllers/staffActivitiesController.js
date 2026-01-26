@@ -1,3 +1,7 @@
+// Backend/controllers/staffActivitiesController.js
+// Controller for managing staff member activities and work logs
+
+
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

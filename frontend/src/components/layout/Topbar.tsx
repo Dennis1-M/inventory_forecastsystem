@@ -1,3 +1,10 @@
+// frontend/src/components/layout/Topbar.tsx
+// This component defines the top navigation bar for the application.
+// It includes a search bar, notification icon, and user profile section with a dropdown menu.
+
+
+
+
 import { Bell, ChevronDown, LogOut, User } from 'lucide-react';
 import React, { useState } from 'react';
 

@@ -1,3 +1,7 @@
+// middleware/project.js
+// Middleware for authentication and role-based access control
+
+
 import colors from "colors";
 import jwt from "jsonwebtoken";
 

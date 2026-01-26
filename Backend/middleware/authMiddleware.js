@@ -1,4 +1,6 @@
 // middleware/authMiddleware.js
+// Middleware for authentication and role-based access control
+
 import jwt from 'jsonwebtoken';
 import prisma from "../config/prisma.js";
 

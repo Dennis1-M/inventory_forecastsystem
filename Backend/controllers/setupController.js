@@ -1,4 +1,7 @@
 // controllers/setupController.js
+// Controller for managing initial setup: creating the first SuperAdmin user
+
+
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma.js';

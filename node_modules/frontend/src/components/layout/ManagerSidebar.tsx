@@ -1,4 +1,8 @@
-import Sidebar from './Sidebar';
+
+
+
+
+import { Sidebar } from './Sidebar';
 
 const managerLinks = [
   { to: '/manager/inventory', label: 'Inventory' },

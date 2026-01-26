@@ -1,3 +1,7 @@
+// settings.controller.js
+// Controller for managing application settings
+
+
 import prisma from '../prisma/client.js';
 
 // Get all settings

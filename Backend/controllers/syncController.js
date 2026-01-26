@@ -1,3 +1,6 @@
+// Backend/controllers/syncController.js
+// Controller for managing synchronization of offline sales data
+
 import colors from "colors";
 import prisma from "../config/prisma.js";
 import { emitAlert, emitProductUpdate } from "../sockets/index.js";

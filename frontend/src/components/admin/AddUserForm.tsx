@@ -1,3 +1,15 @@
+// frontend/src/components/admin/AddUserForm.tsx
+// A form component for adding a new user in the admin panel.
+// It includes fields for name, email, password, and role selection.
+// On submission, it sends a POST request to the backend API to create the user.
+// It also handles loading states and error messages.
+// Uses a Modal component to display the form.
+// Dependencies: React, apiService (for API calls), Modal (for displaying the form in a modal)
+// Note: Ensure that apiService is properly configured to handle API requests.
+// Also, ensure that the Modal component is implemented to handle isOpen and onClose props.
+
+
+
 import { useState } from 'react';
 import apiService from '../../services/api';
 import Modal from '../common/Modal';

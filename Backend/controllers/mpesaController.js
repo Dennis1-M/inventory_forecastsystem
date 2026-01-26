@@ -1,3 +1,6 @@
+// backend/controllers/mpesaController.js
+// Controller to handle M-PESA payments via STK Push
+
 import { stkPush } from "../services/mpesaService.js";
 
 export const payWithMpesa = async (req, res) => {

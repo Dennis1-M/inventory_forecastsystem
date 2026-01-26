@@ -1,6 +1,19 @@
+// frontend/src/components/common/Modal.tsx
+// A reusable modal component for displaying content in a popup dialog.
+// It includes a title, close button, and handles background click to close.
+// Uses Tailwind CSS for styling and lucide-react for the close icon.import React from 'react';
+
+
 import { X } from 'lucide-react';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
